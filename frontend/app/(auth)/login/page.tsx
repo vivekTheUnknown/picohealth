@@ -88,7 +88,7 @@ export default function LoginPage() {
           <FormBanner tone="error" title="Could not sign in">
             <span>{apiErrorMessage(error)}</span>
             {error.requestId ? (
-              <span className="mt-1 block font-mono text-[11px] opacity-80">
+              <span className="mt-1 block font-mono text-2xs opacity-80">
                 Request {error.requestId}
               </span>
             ) : null}
@@ -119,7 +119,7 @@ export default function LoginPage() {
           aside={
             <Link
               href="/recover"
-              className="text-xs font-medium text-accent-800 underline-offset-2 hover:underline"
+              className="text-xs font-medium text-accent underline-offset-2 hover:underline"
             >
               Forgot password?
             </Link>

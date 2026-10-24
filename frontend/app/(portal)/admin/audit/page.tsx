@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { FileClock, RefreshCw, Search, ShieldCheck } from "lucide-react";
 
 import { listAuditEvents, type AuditQuery } from "@/lib/api";
-import { formatDateTime, pluralize } from "@/lib/format";
+import { formatDateTime, pluralize, shortId } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
 import { useSession } from "@/lib/session";
 import type { AuditEvent } from "@/lib/types";
@@ -104,7 +104,7 @@ export default function AdminAuditPage() {
       key: "time",
       header: "Time",
       render: (event) => (
-        <span className="whitespace-nowrap text-[11px] text-ink-muted">
+        <span className="whitespace-nowrap text-2xs text-ink-muted">
           {formatDateTime(event.timestamp, me?.timezone)}
         </span>
       ),
@@ -112,35 +112,48 @@ export default function AdminAuditPage() {
     {
       key: "actor",
       header: "Actor",
-      render: (event) => (
-        <div className="min-w-[10rem]">
-          <p className="text-xs font-medium text-ink">
-            {event.actor_name ?? event.actor_email ?? "Not reported"}
-          </p>
-          {event.actor_email && event.actor_name ? (
-            <p className="text-[10px] text-ink-subtle">{event.actor_email}</p>
-          ) : null}
-          {event.actor_user_id ? (
-            <p className="font-mono text-[10px] text-ink-subtle">{event.actor_user_id}</p>
-          ) : null}
-        </div>
-      ),
+      render: (event) => {
+        const name = event.actor_name ?? event.actor_email;
+        // The API returns only an actor id. Showing "Name not reported" on every
+        // row would repeat a non-fact; the stable id is the useful value.
+        if (!name) {
+          return event.actor_user_id ? (
+            <span className="mono-id block truncate" title={event.actor_user_id}>
+              {shortId(event.actor_user_id, 12)}
+            </span>
+          ) : (
+            <span className="text-xs text-ink-subtle">Not reported</span>
+          );
+        }
+        return (
+          <div className="min-w-[9rem] max-w-[14rem]">
+            <p className="truncate text-sm font-medium text-ink">{name}</p>
+            {event.actor_user_id ? (
+              <p className="mono-id truncate" title={event.actor_user_id}>
+                {shortId(event.actor_user_id)}
+              </p>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       key: "action",
       header: "Action",
       render: (event) => (
-        <span className="break-words font-mono text-[11px] text-ink">{event.action}</span>
+        <span className="break-words font-mono text-2xs text-ink">{event.action}</span>
       ),
     },
     {
       key: "target",
       header: "Target",
       render: (event) => (
-        <div className="min-w-[8rem]">
-          <p className="text-[11px] text-ink-muted">{event.target_type ?? "Not reported"}</p>
+        <div className="min-w-[7rem] max-w-[12rem]">
+          <p className="text-xs text-ink-muted">{event.target_type ?? "Not reported"}</p>
           {event.target_id ? (
-            <p className="break-all font-mono text-[10px] text-ink-subtle">{event.target_id}</p>
+            <p className="mono-id truncate" title={event.target_id}>
+              {shortId(event.target_id)}
+            </p>
           ) : null}
         </div>
       ),
@@ -153,11 +166,14 @@ export default function AdminAuditPage() {
     {
       key: "request",
       header: "Request ID",
-      render: (event) => (
-        <span className="break-all font-mono text-[10px] text-ink-subtle">
-          {event.request_id ?? "Not reported"}
-        </span>
-      ),
+      render: (event) =>
+        event.request_id ? (
+          <span className="mono-id block truncate" title={event.request_id}>
+            {shortId(event.request_id, 12)}
+          </span>
+        ) : (
+          <span className="text-xs text-ink-subtle">Not reported</span>
+        ),
     },
   ];
 
@@ -289,7 +305,7 @@ export default function AdminAuditPage() {
             </div>
           </div>
           {validation ? (
-            <p role="alert" className="text-xs font-medium text-red-700">
+            <p role="alert" className="text-xs font-medium text-danger">
               {validation}
             </p>
           ) : null}
@@ -345,9 +361,9 @@ export default function AdminAuditPage() {
         )}
       </SectionCard>
 
-      <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
+      <div className="rounded-lg border border-line bg-surface p-4">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-accent-700" aria-hidden="true" />
+          <ShieldCheck className="h-4 w-4 text-accent" aria-hidden="true" />
           <h2 className="text-sm font-semibold text-ink">Reading audit records</h2>
         </div>
         <p className="mt-2 text-xs leading-5 text-ink-muted">

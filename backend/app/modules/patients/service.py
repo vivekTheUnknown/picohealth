@@ -99,6 +99,20 @@ def active_event_count(db: DbSession, patient_id: uuid.UUID) -> int:
     )
 
 
+def latest_event_for(db: DbSession, patient_id: uuid.UUID) -> Event | None:
+    """Most recent event for a patient row, whatever its state.
+
+    Resolved and false-positive events are included on purpose: the row should
+    show that the last event is closed, not imply nothing was ever detected.
+    """
+    return db.scalar(
+        select(Event)
+        .where(Event.patient_id == patient_id)
+        .order_by(Event.start_at.desc())
+        .limit(1)
+    )
+
+
 def freshness_label(last_seen: datetime | None) -> str:
     if last_seen is None:
         return "unknown"
@@ -138,6 +152,7 @@ def list_for_doctor(
     items = []
     for patient in patients:
         device = active_device_for_patient(db, patient.id)
+        latest = latest_event_for(db, patient.id)
         items.append(
             {
                 "id": patient.id,
@@ -147,6 +162,18 @@ def list_for_doctor(
                 "last_sync_at": device.last_seen_at if device else None,
                 "active_event_count": active_event_count(db, patient.id),
                 "device_status": device.status if device else None,
+                "latest_event": (
+                    {
+                        "id": latest.id,
+                        "patient_id": latest.patient_id,
+                        "event_type": latest.event_type,
+                        "severity": latest.severity,
+                        "status": latest.status,
+                        "start_at": latest.start_at,
+                    }
+                    if latest
+                    else None
+                ),
             }
         )
     return items, total

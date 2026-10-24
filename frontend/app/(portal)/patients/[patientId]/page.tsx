@@ -35,8 +35,8 @@ function PatientNotFound({ patientId }: { patientId: string }) {
         title="Patient not found"
         breadcrumbs={[{ label: "Patients", href: "/patients" }, { label: "Not found" }]}
       />
-      <div className="flex flex-col items-start gap-4 rounded-xl border border-line bg-surface p-6 shadow-card sm:flex-row">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-slate-100 text-ink-subtle">
+      <div className="flex flex-col items-start gap-4 rounded-lg border border-line bg-surface p-6 sm:flex-row">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-surface-active text-ink-subtle">
           <UserX className="h-5 w-5" aria-hidden="true" />
         </span>
         <div className="min-w-0">
@@ -132,11 +132,20 @@ export default function PatientWorkspacePage() {
     { id: "notes", label: "Notes" },
   ];
 
-  const assignmentText = assignment
-    ? `${
-        assignment.assignment_type === "unknown" ? "Assignment" : assignment.assignment_type
-      } · ${assignment.status === "unknown" ? "status not reported" : assignment.status}`
-    : "Assignment not reported";
+  // Sentence case, spelled out rather than uppercased by CSS.
+  const typeLabel =
+    assignment?.assignment_type === "secondary"
+      ? "Secondary assignment"
+      : assignment?.assignment_type === "primary"
+        ? "Primary assignment"
+        : "Assignment";
+  const statusLabel =
+    assignment?.status === "active"
+      ? "active"
+      : assignment?.status === "ended"
+        ? "ended"
+        : "status not reported";
+  const assignmentText = assignment ? `${typeLabel} · ${statusLabel}` : "Assignment not reported";
 
   return (
     <div className="space-y-6">
@@ -186,7 +195,7 @@ export default function PatientWorkspacePage() {
               label="Data received"
               showAbsolute
             />
-            <span className="capitalize">{assignmentText}</span>
+            <span>{assignmentText}</span>
             {assignment?.starts_at ? (
               <span>Assigned {formatDateTime(assignment.starts_at, timeZone)}</span>
             ) : null}
@@ -197,8 +206,8 @@ export default function PatientWorkspacePage() {
             ) : (
               <span>Device not reported</span>
             )}
-            <span className="capitalize">
-              Patient status: {patient.status === "unknown" ? "Not reported" : patient.status}
+            <span>
+              Patient status: {patient.status === "unknown" ? "not reported" : patient.status}
             </span>
           </>
         }
@@ -226,8 +235,8 @@ export default function PatientWorkspacePage() {
         </FormBanner>
       ) : null}
 
-      <div className="rounded-xl border border-line bg-surface shadow-card">
-        <div className="px-3 pt-2 sm:px-4">
+      <div>
+        <div>
           <Tabs
             items={tabs}
             value={tab}
@@ -242,7 +251,7 @@ export default function PatientWorkspacePage() {
           role="tabpanel"
           aria-labelledby={`patient-workspace-tab-${tab}`}
           tabIndex={0}
-          className="p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-300 sm:p-5"
+          className="pt-4 focus-visible:outline-none"
         >
           {tab === "measurements" ? (
             <MeasurementsPanel patientId={patientId} overview={data} timeZone={timeZone} />
@@ -259,7 +268,7 @@ export default function PatientWorkspacePage() {
         </div>
       </div>
 
-      <p className="text-[11px] leading-5 text-ink-subtle">
+      <p className="text-2xs leading-5 text-ink-subtle">
         Times are shown in {timeZone}. Measurements are summaries from the monitoring service, not a
         continuous clinical recording. Events are possible signals for review, not diagnoses.
       </p>

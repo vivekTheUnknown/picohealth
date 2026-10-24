@@ -86,7 +86,7 @@ export default function AdminOverviewPage() {
           <p className="font-mono text-xs text-ink">
             {failure.hardware_identifier ?? failure.device_id ?? "Not reported"}
           </p>
-          <p className="text-[11px] text-ink-subtle">{failure.patient_name ?? "Patient not reported"}</p>
+          <p className="text-2xs text-ink-subtle">{failure.patient_name ?? "Patient not reported"}</p>
         </div>
       ),
     },
@@ -97,7 +97,7 @@ export default function AdminOverviewPage() {
         <div>
           <p className="text-xs text-ink">{failure.message ?? "No message reported"}</p>
           {failure.failure_code ? (
-            <p className="font-mono text-[10px] text-ink-subtle">{failure.failure_code}</p>
+            <p className="font-mono text-2xs text-ink-subtle">{failure.failure_code}</p>
           ) : null}
         </div>
       ),
@@ -106,7 +106,7 @@ export default function AdminOverviewPage() {
       key: "time",
       header: "Last failure",
       render: (failure) => (
-        <span className="whitespace-nowrap text-[11px] text-ink-muted">
+        <span className="whitespace-nowrap text-2xs text-ink-muted">
           {formatDateTime(failure.last_failure_at, timeZone)}
         </span>
       ),
@@ -152,7 +152,7 @@ export default function AdminOverviewPage() {
         </FormBanner>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
           label="Active patients"
           value={data.active_patients}
@@ -221,15 +221,15 @@ export default function AdminOverviewPage() {
                         </span>
                       </span>
                     </div>
-                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-active">
                       <div
-                        className="h-full rounded-full bg-accent-600"
+                        className="h-full rounded-full bg-accent"
                         style={{ width: `${(entry.count / maxDeviceCount) * 100}%` }}
                       />
                     </div>
                   </div>
                 ))}
-              <p className="pt-1 text-[11px] text-ink-subtle">
+              <p className="pt-1 text-2xs text-ink-subtle">
                 {pluralize(totalDevices, "device")} across reported statuses.
               </p>
             </div>
@@ -240,7 +240,7 @@ export default function AdminOverviewPage() {
           title="Recent account and device changes"
           description="Newest administrative changes reported by the API."
           actions={
-            <Link href="/admin/audit" className="text-xs font-medium text-accent-800 hover:underline">
+            <Link href="/admin/audit" className="text-xs font-medium text-accent hover:underline">
               Audit log
             </Link>
           }
@@ -259,12 +259,12 @@ export default function AdminOverviewPage() {
                 <li key={change.id} className="flex flex-col gap-1 py-2.5 first:pt-0 last:pb-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-ink">{change.action}</p>
-                    <p className="mt-0.5 text-[11px] text-ink-subtle">
+                    <p className="mt-0.5 text-2xs text-ink-subtle">
                       {change.actor_name ?? "Actor not reported"}
                       {change.target ? ` · ${change.target}` : ""}
                     </p>
                   </div>
-                  <span className="shrink-0 text-[11px] text-ink-subtle">
+                  <span className="shrink-0 text-2xs text-ink-subtle">
                     {formatDateTime(change.timestamp, timeZone)}
                   </span>
                 </li>
@@ -278,7 +278,7 @@ export default function AdminOverviewPage() {
         title="Synchronization failures"
         description="Failures reported in the overview. Use platform health for service-level status."
         actions={
-          <Link href="/admin/health" className="text-xs font-medium text-accent-800 hover:underline">
+          <Link href="/admin/health" className="text-xs font-medium text-accent hover:underline">
             Platform health
           </Link>
         }
@@ -306,7 +306,7 @@ export default function AdminOverviewPage() {
           title="System health summary"
           description="Service indicators as surfaced by the backend."
           actions={
-            <Link href="/admin/health" className="inline-flex items-center gap-0.5 text-xs font-medium text-accent-800 hover:underline">
+            <Link href="/admin/health" className="inline-flex items-center gap-0.5 text-xs font-medium text-accent hover:underline">
               Details
               <ChevronRight className="h-3 w-3" aria-hidden="true" />
             </Link>
@@ -316,7 +316,7 @@ export default function AdminOverviewPage() {
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <HealthStatusBadge status={data.system_health.status} />
-                <span className="text-[11px] text-ink-subtle">
+                <span className="text-2xs text-ink-subtle">
                   Checked {formatDateTime(data.system_health.generated_at, timeZone)}
                 </span>
               </div>

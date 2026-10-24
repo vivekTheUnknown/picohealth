@@ -30,10 +30,10 @@ function PatientStatus({ status }: { status: string }) {
       <span
         className={
           status === "active"
-            ? "h-1.5 w-1.5 rounded-full bg-emerald-500"
+            ? "h-1.5 w-1.5 rounded-full bg-success"
             : status === "inactive"
-              ? "h-1.5 w-1.5 rounded-full bg-slate-400"
-              : "h-1.5 w-1.5 rounded-full bg-amber-500"
+              ? "h-1.5 w-1.5 rounded-full bg-ink-subtle"
+              : "h-1.5 w-1.5 rounded-full bg-warning"
         }
         aria-hidden="true"
       />
@@ -106,7 +106,7 @@ export default function AdminPatientsPage() {
       render: (patient) => (
         <div className="min-w-[12rem]">
           <p className="text-xs font-semibold text-ink">{patient.display_name}</p>
-          <p className="mt-0.5 font-mono text-[11px] text-ink-subtle">
+          <p className="mt-0.5 font-mono text-2xs text-ink-subtle">
             {patient.patient_code || "No patient code reported"}
           </p>
         </div>
@@ -121,7 +121,7 @@ export default function AdminPatientsPage() {
       key: "dob",
       header: "Date of birth",
       render: (patient) => (
-        <span className="whitespace-nowrap text-[11px] text-ink-muted">
+        <span className="whitespace-nowrap text-2xs text-ink-muted">
           {patient.date_of_birth ? formatDate(patient.date_of_birth) : "Not reported"}
         </span>
       ),
@@ -130,7 +130,7 @@ export default function AdminPatientsPage() {
       key: "created",
       header: "Registered",
       render: (patient) => (
-        <span className="whitespace-nowrap text-[11px] text-ink-muted">
+        <span className="whitespace-nowrap text-2xs text-ink-muted">
           {formatDateTime(patient.created_at, me?.timezone)}
         </span>
       ),
@@ -150,7 +150,7 @@ export default function AdminPatientsPage() {
             <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Link>
         ) : (
-          <span className="text-[11px] text-ink-subtle">Clinical access not granted</span>
+          <span className="text-2xs text-ink-subtle">Clinical access not granted</span>
         ),
     },
   ];
@@ -243,11 +243,11 @@ export default function AdminPatientsPage() {
       ) : null}
 
       <SectionCard bodyClassName="p-0">
-        <div className="flex flex-col gap-3 border-b border-line bg-slate-50/50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="flex flex-col gap-3 border-b border-line bg-surface-raised/50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="min-w-0 flex-1">
             <label
               htmlFor="admin-patients-search"
-              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+              className="mb-1 block text-2xs font-medium text-ink-subtle"
             >
               Search
             </label>
@@ -268,7 +268,7 @@ export default function AdminPatientsPage() {
           <div className="w-full sm:w-40">
             <label
               htmlFor="admin-patients-status"
-              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+              className="mb-1 block text-2xs font-medium text-ink-subtle"
             >
               Status
             </label>
@@ -318,7 +318,7 @@ export default function AdminPatientsPage() {
         )}
       </SectionCard>
 
-      <p className="text-[11px] leading-5 text-ink-subtle">
+      <p className="text-2xs leading-5 text-ink-subtle">
         This directory is administrative. A patient appearing here does not mean the patient is
         assigned to you or that you can access their clinical data.
       </p>
@@ -409,7 +409,7 @@ export default function AdminPatientsPage() {
               </Select>
             </Field>
           </div>
-          <p className="text-[11px] leading-5 text-ink-subtle">
+          <p className="text-2xs leading-5 text-ink-subtle">
             Registration does not start monitoring. A doctor assignment and a linked device are
             required before measurements can arrive.
           </p>

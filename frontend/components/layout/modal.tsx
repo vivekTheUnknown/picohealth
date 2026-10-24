@@ -100,7 +100,7 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
       <div
-        className="absolute inset-0 bg-slate-900/45"
+        className="absolute inset-0 bg-black/60"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -112,7 +112,7 @@ export function Modal({
         aria-describedby={description ? descriptionId : undefined}
         tabIndex={-1}
         className={cn(
-          "relative z-10 w-full animate-fade-in overflow-hidden rounded-xl border border-line bg-surface shadow-raised",
+          "relative z-10 w-full animate-fade-in overflow-hidden rounded-lg border border-line bg-surface shadow-raised",
           SIZES[size],
         )}
       >
@@ -130,7 +130,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="-mr-1 rounded-md p-1.5 text-ink-subtle hover:bg-slate-100 hover:text-ink"
+            className="-mr-1 rounded-md p-1.5 text-ink-subtle hover:bg-surface-active hover:text-ink"
             aria-label="Close dialog"
           >
             <X className="h-4 w-4" aria-hidden="true" />
@@ -138,7 +138,7 @@ export function Modal({
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
         {footer ? (
-          <div className="flex flex-wrap justify-end gap-2 border-t border-line bg-slate-50/70 px-5 py-3">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line bg-surface-raised/70 px-5 py-3">
             {footer}
           </div>
         ) : null}

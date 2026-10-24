@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
-  BatteryMedium,
   Bell,
   ChevronRight,
   RefreshCw,
@@ -16,10 +15,8 @@ import {
 } from "lucide-react";
 
 import { getDoctorOverview } from "@/lib/api";
-import { METRIC_ORDER } from "@/lib/constants";
 import { formatDateTime, formatNumber, humanizeEventType, pluralize } from "@/lib/format";
 import { freshnessFor } from "@/lib/freshness";
-import { latestMeasurementsByMetric } from "@/lib/normalize";
 import { useApi } from "@/lib/use-api";
 import { useSession } from "@/lib/session";
 import type { PatientSummary, Severity } from "@/lib/types";
@@ -31,11 +28,11 @@ import { ErrorState } from "@/components/layout/error-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageSkeleton } from "@/components/layout/skeleton";
 import { SectionCard } from "@/components/layout/section-card";
+import { DataTable } from "@/components/tables/data-table";
 import { StatCard } from "@/components/layout/stat-card";
 import { PermissionDenied } from "@/components/status/permission-denied";
 import { DataFreshness } from "@/components/status/data-freshness";
 import { DeviceStatusBadge } from "@/components/status/device-status-badge";
-import { MeasurementChip } from "@/components/status/measurement-card";
 import { SeverityBadge } from "@/components/status/severity-badge";
 import { StatusBadge } from "@/components/status/status-badge";
 
@@ -58,104 +55,6 @@ function isActiveEvent(patient: PatientSummary): boolean {
 function patientPriority(patient: PatientSummary): number {
   const severity = patient.latest_event?.severity ?? "unknown";
   return SEVERITY_RANK[severity] * 10 + (isActiveEvent(patient) ? 1 : 0);
-}
-
-function PatientRow({ patient, timeZone }: { patient: PatientSummary; timeZone: string }) {
-  const latest = latestMeasurementsByMetric(patient.measurements);
-  const rowFreshness = freshnessFor(patient.last_received_at);
-  const metrics = METRIC_ORDER.filter((metric) => metric !== "activity").slice(0, 5);
-
-  return (
-    <Link
-      href={`/patients/${patient.id}`}
-      className="group block px-4 py-4 transition-colors hover:bg-accent-50/40 focus-visible:bg-accent-50/40 sm:px-5"
-    >
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-sm font-semibold text-ink group-hover:text-accent-900">
-              {patient.display_name}
-            </span>
-            {patient.patient_code ? (
-              <span className="font-mono text-[11px] text-ink-subtle">{patient.patient_code}</span>
-            ) : null}
-            {rowFreshness.state === "stale" ? (
-              <span className="inline-flex items-center gap-1 rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
-                <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-                Stale data
-              </span>
-            ) : null}
-          </div>
-
-          {latest.size === 0 ? (
-            <p className="mt-2 text-[11px] text-ink-subtle">
-              Measurement summary not included in this overview. Open the workspace for current
-              values.
-            </p>
-          ) : (
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              {metrics.map((metric) => (
-                <MeasurementChip
-                  key={metric}
-                  metric={metric}
-                  measurement={latest.get(metric) ?? null}
-                />
-              ))}
-            </div>
-          )}
-
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-ink-subtle">
-            <DataFreshness
-              timestamp={patient.last_received_at}
-              timeZone={timeZone}
-              label="Data received"
-            />
-            {patient.device_status ? (
-              <span className="inline-flex items-center gap-1">
-                <Watch className="h-3.5 w-3.5" aria-hidden="true" />
-                <DeviceStatusBadge status={patient.device_status} />
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1">
-                <Watch className="h-3.5 w-3.5" aria-hidden="true" />
-                Device not reported
-              </span>
-            )}
-            {patient.battery_level !== null ? (
-              <span className="inline-flex items-center gap-1">
-                <BatteryMedium className="h-3.5 w-3.5" aria-hidden="true" />
-                Battery {formatNumber(patient.battery_level, 0)}%
-              </span>
-            ) : null}
-            {patient.active_event_count !== null && patient.active_event_count > 0 ? (
-              <span className="inline-flex items-center gap-1 font-medium text-ink-muted">
-                <Bell className="h-3.5 w-3.5" aria-hidden="true" />
-                {pluralize(patient.active_event_count, "active event")}
-              </span>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="flex shrink-0 flex-wrap items-center gap-2 lg:flex-col lg:items-end">
-          {patient.latest_event ? (
-            <>
-              <SeverityBadge severity={patient.latest_event.severity} size="sm" />
-              <StatusBadge status={patient.latest_event.status} size="sm" />
-              <span className="text-[11px] text-ink-subtle">
-                {humanizeEventType(patient.latest_event.event_type)}
-              </span>
-            </>
-          ) : (
-            <span className="text-xs text-ink-subtle">No recent event</span>
-          )}
-          <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-accent-800 lg:mt-1">
-            Open workspace
-            <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </span>
-        </div>
-      </div>
-    </Link>
-  );
 }
 
 export default function ClinicalOverviewPage() {
@@ -295,7 +194,7 @@ export default function ClinicalOverviewPage() {
         </FormBanner>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Patients monitored"
           value={monitored}
@@ -341,11 +240,11 @@ export default function ClinicalOverviewPage() {
           className="xl:col-span-2"
           bodyClassName="p-0"
         >
-          <div className="flex flex-col gap-3 border-b border-line bg-slate-50/50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="flex flex-col gap-3 border-b border-line bg-surface-raised/50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
             <div className="min-w-0 flex-1">
               <label
                 htmlFor="overview-search"
-                className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+                className="mb-1 block text-2xs font-medium text-ink-subtle"
               >
                 Search
               </label>
@@ -366,7 +265,7 @@ export default function ClinicalOverviewPage() {
             <div className="w-full sm:w-40">
               <label
                 htmlFor="overview-severity"
-                className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+                className="mb-1 block text-2xs font-medium text-ink-subtle"
               >
                 Event severity
               </label>
@@ -386,7 +285,7 @@ export default function ClinicalOverviewPage() {
             <div className="w-full sm:w-40">
               <label
                 htmlFor="overview-freshness"
-                className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+                className="mb-1 block text-2xs font-medium text-ink-subtle"
               >
                 Data freshness
               </label>
@@ -426,11 +325,65 @@ export default function ClinicalOverviewPage() {
               }
             />
           ) : (
-            <div className="divide-y divide-line">
-              {filteredPatients.map((patient) => (
-                <PatientRow key={patient.id} patient={patient} timeZone={me?.timezone ?? "UTC"} />
-              ))}
-            </div>
+            <DataTable
+              caption="Prioritized patients"
+              rows={filteredPatients}
+              rowKey={(patient) => patient.id}
+              columns={[
+                {
+                  key: "patient",
+                  header: "Patient",
+                  className: "min-w-[11rem]",
+                  render: (patient) => (
+                    <Link href={`/patients/${patient.id}`} className="group block">
+                      <span className="block text-sm font-medium leading-5 text-ink transition-colors duration-fast group-hover:text-accent">
+                        {patient.display_name}
+                      </span>
+                      <span className="mono-id block leading-4">{patient.patient_code || "—"}</span>
+                    </Link>
+                  ),
+                },
+                {
+                  key: "event",
+                  header: "Latest event",
+                  className: "min-w-[15rem]",
+                  render: (patient) =>
+                    patient.latest_event ? (
+                      <div className="flex items-center gap-1 whitespace-nowrap">
+                        <SeverityBadge severity={patient.latest_event.severity} size="sm" />
+                        <StatusBadge status={patient.latest_event.status} size="sm" />
+                        <span className="text-2xs text-ink-subtle">
+                          {humanizeEventType(patient.latest_event.event_type)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-ink-subtle">None reported</span>
+                    ),
+                },
+                {
+                  key: "data",
+                  header: "Data received",
+                  render: (patient) => (
+                    <DataFreshness
+                      timestamp={patient.last_received_at}
+                      timeZone={me?.timezone}
+                      label="Received"
+                      compact
+                    />
+                  ),
+                },
+                {
+                  key: "device",
+                  header: "Device",
+                  render: (patient) =>
+                    patient.device_status ? (
+                      <DeviceStatusBadge status={patient.device_status} />
+                    ) : (
+                      <span className="text-xs text-ink-subtle">Not reported</span>
+                    ),
+                },
+              ]}
+            />
           )}
         </SectionCard>
 
@@ -441,7 +394,7 @@ export default function ClinicalOverviewPage() {
             actions={
               <Link
                 href="/alerts"
-                className="inline-flex items-center gap-1 text-xs font-medium text-accent-800 hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
               >
                 All alerts
                 <ChevronRight className="h-3 w-3" aria-hidden="true" />
@@ -462,7 +415,7 @@ export default function ClinicalOverviewPage() {
                   <li key={event.id}>
                     <Link
                       href={`/alerts?event=${encodeURIComponent(event.id)}`}
-                      className="flex flex-col gap-1.5 rounded-lg border border-transparent px-2 py-2 hover:border-line hover:bg-slate-50"
+                      className="flex flex-col gap-1.5 rounded-lg border border-transparent px-2 py-2 hover:border-line hover:bg-surface-raised"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <SeverityBadge severity={event.severity} size="sm" />
@@ -471,7 +424,7 @@ export default function ClinicalOverviewPage() {
                       <p className="text-xs font-medium text-ink">
                         {humanizeEventType(event.event_type)}
                       </p>
-                      <p className="text-[11px] text-ink-subtle">
+                      <p className="text-2xs text-ink-subtle">
                         {event.patient_name ?? "Patient not reported"}
                         {event.start_at
                           ? ` · ${formatDateTime(event.start_at, me?.timezone)}`
@@ -484,11 +437,9 @@ export default function ClinicalOverviewPage() {
             )}
           </SectionCard>
 
-          <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
+          <div className="rounded-lg border border-line bg-surface p-4">
             <div className="flex items-center gap-2">
-              <span className="grid h-7 w-7 place-items-center rounded-lg bg-ocean-50 text-ocean-700">
-                <Activity className="h-4 w-4" aria-hidden="true" />
-              </span>
+              <Activity className="h-3.5 w-3.5 text-info" aria-hidden="true" />
               <h2 className="text-sm font-semibold text-ink">Reading the data</h2>
             </div>
             <p className="mt-2 text-xs leading-5 text-ink-muted">
@@ -504,7 +455,7 @@ export default function ClinicalOverviewPage() {
       </div>
 
       {data ? (
-        <p className="text-[11px] text-ink-subtle">
+        <p className="text-2xs text-ink-subtle">
           Time zone: {me?.timezone ?? "UTC"}. Summary counts are reported by the API; “—” means the
           value was not reported.
         </p>

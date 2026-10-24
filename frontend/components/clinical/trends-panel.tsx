@@ -80,7 +80,7 @@ export function TrendsPanel({
         <div className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div
-              className="flex flex-wrap gap-1 rounded-lg border border-line bg-slate-50 p-1"
+              className="flex flex-wrap gap-1 rounded-lg border border-line bg-surface-raised p-1"
               role="group"
               aria-label="Trend time range"
             >
@@ -93,7 +93,7 @@ export function TrendsPanel({
                   className={cn(
                     "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
                     entry.key === rangeKey
-                      ? "bg-surface text-accent-900 shadow-sm"
+                      ? "bg-surface text-ink"
                       : "text-ink-muted hover:bg-surface/70 hover:text-ink",
                   )}
                 >
@@ -101,7 +101,7 @@ export function TrendsPanel({
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-ink-subtle">
+            <p className="text-2xs text-ink-subtle">
               {formatDateTime(from, timeZone)} → {formatDateTime(to, timeZone)}
             </p>
           </div>
@@ -124,8 +124,8 @@ export function TrendsPanel({
           ) : measurements.loading && !measurements.data ? (
             <div className="space-y-3" role="status" aria-live="polite">
               <span className="sr-only">Loading trend data</span>
-              <Skeleton className="h-64 w-full rounded-xl" />
-              <Skeleton className="h-64 w-full rounded-xl" />
+              <Skeleton className="h-64 w-full rounded-lg" />
+              <Skeleton className="h-64 w-full rounded-lg" />
             </div>
           ) : data.length === 0 ? (
             <EmptyState
@@ -139,7 +139,7 @@ export function TrendsPanel({
                 {available.map((metric) => (
                   <div
                     key={metric}
-                    className="rounded-xl border border-line bg-surface p-4 shadow-card"
+                    className="rounded-lg border border-line bg-surface p-4"
                   >
                     <TrendChart
                       measurements={data}
@@ -153,13 +153,13 @@ export function TrendsPanel({
                 ))}
               </div>
               {unavailable.length > 0 ? (
-                <p className="text-[11px] leading-5 text-ink-subtle">
+                <p className="text-2xs leading-5 text-ink-subtle">
                   No recorded values in this range for:{" "}
                   {unavailable.map((metric) => humanizeMetric(metric)).join(", ")}.
                 </p>
               ) : null}
               {overview.baselines.length > 0 ? (
-                <p className="text-[11px] leading-5 text-ink-subtle">
+                <p className="text-2xs leading-5 text-ink-subtle">
                   Personal baselines are shown only where the backend reported a suitable
                   baseline. They are patient-specific, not population reference ranges.
                 </p>

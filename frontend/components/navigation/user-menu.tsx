@@ -74,12 +74,12 @@ export function UserMenu({ me }: { me: Me }) {
         onClick={() => setOpen((value) => !value)}
         className={cn(
           "flex items-center gap-2 rounded-lg border border-transparent px-1.5 py-1 text-left transition-colors",
-          "hover:border-line hover:bg-slate-50",
-          open && "border-line bg-slate-50",
+          "hover:border-line hover:bg-surface-raised",
+          open && "border-line bg-surface-raised",
         )}
       >
         <span
-          className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent-100 text-[11px] font-semibold text-accent-800"
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent-subtle text-2xs font-semibold text-accent"
           aria-hidden="true"
         >
           {initials(me.display_name, me.email)}
@@ -88,7 +88,7 @@ export function UserMenu({ me }: { me: Me }) {
           <span className="block max-w-40 truncate text-xs font-medium leading-tight text-ink">
             {me.display_name}
           </span>
-          <span className="block text-[11px] leading-tight text-ink-subtle">
+          <span className="block text-2xs leading-tight text-ink-subtle">
             {me.roles.length > 0 ? me.roles.map((role) => (role === "admin" ? "Administrator" : "Doctor")).join(" · ") : "No role"}
           </span>
         </span>
@@ -101,7 +101,7 @@ export function UserMenu({ me }: { me: Me }) {
           role="menu"
           aria-label="Account"
           onKeyDown={handleMenuKeyDown}
-          className="absolute right-0 z-40 mt-2 w-64 animate-fade-in overflow-hidden rounded-xl border border-line bg-surface shadow-raised"
+          className="absolute right-0 z-40 mt-2 w-64 animate-fade-in overflow-hidden rounded-lg border border-line bg-surface shadow-raised"
         >
           <div className="border-b border-line px-3.5 py-3">
             <p className="truncate text-sm font-semibold text-ink">{me.display_name}</p>
@@ -117,7 +117,7 @@ export function UserMenu({ me }: { me: Me }) {
               href="/settings"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink-muted hover:bg-slate-100 hover:text-ink"
+              className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink-muted hover:bg-surface-active hover:text-ink"
             >
               <Settings className="h-4 w-4 text-ink-subtle" aria-hidden="true" />
               Profile &amp; settings
@@ -127,7 +127,7 @@ export function UserMenu({ me }: { me: Me }) {
                 href="/admin/overview"
                 role="menuitem"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink-muted hover:bg-slate-100 hover:text-ink"
+                className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink-muted hover:bg-surface-active hover:text-ink"
               >
                 <ShieldCheck className="h-4 w-4 text-ink-subtle" aria-hidden="true" />
                 Operations workspace
@@ -138,7 +138,7 @@ export function UserMenu({ me }: { me: Me }) {
               role="menuitem"
               onClick={handleSignOut}
               disabled={signingOut}
-              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-ink-muted hover:bg-slate-100 hover:text-ink disabled:opacity-60"
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-ink-muted hover:bg-surface-active hover:text-ink disabled:opacity-60"
             >
               <LogOut className="h-4 w-4 text-ink-subtle" aria-hidden="true" />
               {signingOut ? "Signing out…" : "Sign out"}

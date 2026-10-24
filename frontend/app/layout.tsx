@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import "@fontsource-variable/inter";
 
 import "./globals.css";
 
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0f7f76",
+  themeColor: "#17191C",
 };
 
 export default function RootLayout({

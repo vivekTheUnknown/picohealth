@@ -28,10 +28,10 @@ function Metric({
   hint?: string;
 }) {
   return (
-    <div className="rounded-lg border border-line bg-slate-50/50 px-3 py-2.5">
-      <p className="text-[10px] font-medium uppercase tracking-wide text-ink-subtle">{label}</p>
-      <p className="mt-0.5 text-lg font-semibold tabular-nums text-ink">{value}</p>
-      {hint ? <p className="mt-0.5 text-[10px] leading-4 text-ink-subtle">{hint}</p> : null}
+    <div className="bg-surface px-4 py-3">
+      <p className="text-2xs font-medium text-ink-subtle">{label}</p>
+      <p className="mt-0.5 text-2xl font-semibold tabular text-ink">{value}</p>
+      {hint ? <p className="mt-0.5 text-2xs leading-4 text-ink-subtle">{hint}</p> : null}
     </div>
   );
 }
@@ -48,13 +48,13 @@ function StatTile({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-ink-subtle">{label}</p>
-        <Icon className="h-4 w-4 text-accent-700" aria-hidden="true" />
+    <div className="bg-surface px-4 py-3">
+      <div className="flex items-center gap-1.5">
+        <Icon className="h-3.5 w-3.5 text-ink-subtle" aria-hidden="true" />
+        <p className="text-2xs text-ink-subtle">{label}</p>
       </div>
-      <div className="mt-2 text-2xl font-semibold tabular-nums text-ink">{children}</div>
-      <p className="mt-1 text-xs text-ink-subtle">{hint}</p>
+      <div className="mt-1.5 text-4xl font-semibold tabular text-ink">{children}</div>
+      <p className="mt-0.5 text-2xs text-ink-subtle">{hint}</p>
     </div>
   );
 }
@@ -78,7 +78,7 @@ export default function AdminHealthPage() {
       key: "message",
       header: "Detail",
       render: (check) => (
-        <span className="text-[11px] leading-5 text-ink-muted">{check.message ?? "No detail reported"}</span>
+        <span className="text-2xs leading-5 text-ink-muted">{check.message ?? "No detail reported"}</span>
       ),
     },
     {
@@ -86,7 +86,7 @@ export default function AdminHealthPage() {
       header: "Latency",
       align: "right",
       render: (check) => (
-        <span className="whitespace-nowrap text-[11px] text-ink-muted">
+        <span className="whitespace-nowrap text-2xs text-ink-muted">
           {check.latency_ms === null ? "Not reported" : `${formatNumber(check.latency_ms, 0)} ms`}
         </span>
       ),
@@ -206,7 +206,7 @@ export default function AdminHealthPage() {
             </FormBanner>
           )}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
             <StatTile
               label="Service checks"
               icon={Activity}
@@ -261,7 +261,7 @@ export default function AdminHealthPage() {
               >
                 <span
                   className={
-                    data.ingestion.failed_batches > 0 ? "text-red-700" : undefined
+                    data.ingestion.failed_batches > 0 ? "text-danger" : undefined
                   }
                 >
                   {formatNumber(data.ingestion.failed_batches, 0)}
@@ -338,7 +338,7 @@ export default function AdminHealthPage() {
                       </dd>
                     </div>
                   </dl>
-                  <p className="text-[11px] leading-5 text-ink-subtle">
+                  <p className="text-2xs leading-5 text-ink-subtle">
                     Pending or failed batches indicate processing work, not necessarily lost
                     measurements. Do not infer clinical status from ingestion counters.
                   </p>
@@ -356,7 +356,7 @@ export default function AdminHealthPage() {
             <SectionCard title="Device synchronization" description="Connectivity and staleness as reported.">
               {data.device_sync ? (
                 <div className="space-y-3">
-                  <div className="grid gap-2 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-3">
                     <Metric
                       label="Online"
                       value={
@@ -390,7 +390,7 @@ export default function AdminHealthPage() {
                       </dd>
                     </div>
                   </dl>
-                  <p className="text-[11px] leading-5 text-ink-subtle">
+                  <p className="text-2xs leading-5 text-ink-subtle">
                     Device counts reflect the API's last assessment. Per-device contact state is in
                     the device registry.
                   </p>
@@ -406,7 +406,7 @@ export default function AdminHealthPage() {
             </SectionCard>
           </div>
 
-          <p className="text-[11px] leading-5 text-ink-subtle">
+          <p className="text-2xs leading-5 text-ink-subtle">
             Times are shown in {me?.timezone ?? "UTC"}. Health checks are operational telemetry and
             do not establish that clinical data is complete or accurate.
           </p>

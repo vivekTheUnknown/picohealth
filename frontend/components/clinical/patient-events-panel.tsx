@@ -114,7 +114,7 @@ export function PatientEventsPanel({
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div
-            className="flex flex-wrap gap-1 rounded-lg border border-line bg-slate-50 p-1"
+            className="flex flex-wrap gap-1 rounded-lg border border-line bg-surface-raised p-1"
             role="group"
             aria-label="Filter events by state"
           >
@@ -133,16 +133,16 @@ export function PatientEventsPanel({
                 className={cn(
                   "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
                   filter === entry.key
-                    ? "bg-surface text-accent-900 shadow-sm"
+                    ? "bg-surface text-ink"
                     : "text-ink-muted hover:bg-surface/70 hover:text-ink",
                 )}
               >
                 {entry.label}
-                <span className="ml-1.5 text-[10px] tabular-nums text-ink-subtle">{entry.count}</span>
+                <span className="ml-1.5 text-2xs tabular-nums text-ink-subtle">{entry.count}</span>
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-ink-subtle">
+          <p className="text-2xs text-ink-subtle">
             {pluralize(rows.length, "event")} shown · {pluralize(activeCount, "active event")}
           </p>
         </div>
@@ -168,14 +168,14 @@ export function PatientEventsPanel({
           <ol className="space-y-2">
             {rows.map((event) => (
               <li key={event.id}>
-                <div className="rounded-lg border border-line bg-surface p-3.5 transition-colors hover:border-line-strong hover:bg-slate-50/60 sm:p-4">
+                <div className="rounded-lg border border-line bg-surface p-3.5 transition-colors hover:border-line-strong hover:bg-surface-raised/60 sm:p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <SeverityBadge severity={event.severity} size="sm" />
                         <StatusBadge status={event.status} size="sm" />
                         {event.source ? (
-                          <span className="rounded border border-line bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
+                          <span className="rounded border border-line bg-surface-raised px-1.5 py-0.5 text-2xs font-medium text-ink-subtle">
                             {event.source}
                           </span>
                         ) : null}
@@ -183,7 +183,7 @@ export function PatientEventsPanel({
                       <p className="mt-1.5 text-sm font-medium text-ink">
                         {humanizeEventType(event.event_type)}
                       </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-subtle">
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-ink-subtle">
                         <span>Started {formatDateTime(event.start_at, timeZone)}</span>
                         <span>Duration {formatEventDuration(event.start_at, event.end_at, event.status)}</span>
                         {event.rule_version ? (
@@ -196,7 +196,7 @@ export function PatientEventsPanel({
                     </div>
                     <Link
                       href={`/alerts?event=${encodeURIComponent(event.id)}`}
-                      className="inline-flex shrink-0 items-center gap-0.5 self-start rounded text-xs font-medium text-accent-800 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
+                      className="inline-flex shrink-0 items-center gap-0.5 self-start rounded text-xs font-medium text-accent underline-offset-2 hover:underline focus-visible:outline-none"
                     >
                       Open event
                       <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />

@@ -23,7 +23,7 @@ export default function AppError({
         message="The page could not be rendered. Your session and data are unaffected. Try again, or return to the overview."
         onRetry={reset}
         actions={
-          <a href="/" className="text-sm font-medium text-accent-800 underline underline-offset-2">
+          <a href="/" className="text-sm font-medium text-accent underline underline-offset-2">
             Return to the portal
           </a>
         }

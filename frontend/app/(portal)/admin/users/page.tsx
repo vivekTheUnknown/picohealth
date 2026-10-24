@@ -204,16 +204,16 @@ export default function AdminUsersPage() {
       render: (user) => (
         <div className="min-w-[12rem]">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-semibold text-ink">{user.display_name}</span>
+            <span className="text-sm font-medium text-ink">{user.display_name}</span>
             {user.id === me?.id ? (
-              <span className="rounded border border-accent-200 bg-accent-50 px-1 py-0.5 text-[10px] font-medium text-accent-800">
+              <span className="inline-flex h-5 items-center rounded-sm border border-accent/30 bg-accent-subtle px-1.5 text-2xs font-medium text-accent">
                 You
               </span>
             ) : null}
           </div>
-          <p className="mt-0.5 text-[11px] text-ink-muted">{user.email || "Email not reported"}</p>
-          <p className="mt-0.5 text-[10px] text-ink-subtle">
-            Created {formatDateTime(user.created_at, me?.timezone)}
+          <p className="text-2xs text-ink-subtle">
+            {user.email || "Email not reported"} · Created{" "}
+            {formatDateTime(user.created_at, me?.timezone)}
           </p>
         </div>
       ),
@@ -224,7 +224,7 @@ export default function AdminUsersPage() {
       render: (user) => (
         <div className="flex min-w-[8rem] flex-wrap gap-1">
           {user.roles.length === 0 ? (
-            <span className="text-[11px] text-ink-subtle">No role reported</span>
+            <span className="text-2xs text-ink-subtle">No role reported</span>
           ) : (
             user.roles.map((role) => <RoleBadge key={role} role={role} />)
           )}
@@ -245,7 +245,7 @@ export default function AdminUsersPage() {
       key: "lastLogin",
       header: "Last sign-in",
       render: (user) => (
-        <span className="whitespace-nowrap text-[11px] text-ink-muted">
+        <span className="whitespace-nowrap text-2xs text-ink-muted">
           {user.last_login_at ? formatDateTime(user.last_login_at, me?.timezone) : "Never reported"}
         </span>
       ),
@@ -260,7 +260,7 @@ export default function AdminUsersPage() {
             Manage
           </Button>
         ) : (
-          <span className="text-[11px] text-ink-subtle">Read-only</span>
+          <span className="text-2xs text-ink-subtle">Read-only</span>
         ),
     },
   ];
@@ -354,11 +354,11 @@ export default function AdminUsersPage() {
       ) : null}
 
       <SectionCard bodyClassName="p-0">
-        <div className="flex flex-col gap-3 border-b border-line bg-slate-50/50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="flex flex-col gap-3 border-b border-line bg-surface-raised/50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="min-w-0 flex-1">
             <label
               htmlFor="users-search"
-              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+              className="mb-1 block text-2xs font-medium text-ink-subtle"
             >
               Search
             </label>
@@ -379,7 +379,7 @@ export default function AdminUsersPage() {
           <div className="w-full sm:w-40">
             <label
               htmlFor="users-status"
-              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+              className="mb-1 block text-2xs font-medium text-ink-subtle"
             >
               Status
             </label>
@@ -399,7 +399,7 @@ export default function AdminUsersPage() {
           <div className="w-full sm:w-40">
             <label
               htmlFor="users-role"
-              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+              className="mb-1 block text-2xs font-medium text-ink-subtle"
             >
               Role
             </label>
@@ -671,7 +671,7 @@ export default function AdminUsersPage() {
                 to <span className="font-medium text-ink">{nextRoles.join(", ") || "none"}</span>.
               </p>
             ) : null}
-            <p className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning-subtle px-3 py-2 text-xs text-warning">
               <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               The API records this action in the audit log. Existing sessions may be revoked.
             </p>

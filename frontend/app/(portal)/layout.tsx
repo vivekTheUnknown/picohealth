@@ -17,9 +17,9 @@ function SessionLoading() {
       role="status"
       aria-live="polite"
     >
-      <div className="flex items-center gap-3 rounded-xl border border-line bg-surface px-5 py-4 shadow-card">
+      <div className="flex items-center gap-3 rounded-lg border border-line bg-surface px-5 py-4">
         <span
-          className="grid h-9 w-9 place-items-center rounded-lg bg-accent-700 text-white"
+          className="grid h-9 w-9 place-items-center rounded-lg bg-accent text-accent-fg"
           aria-hidden="true"
         >
           <HeartPulse className="h-5 w-5" />
@@ -28,7 +28,7 @@ function SessionLoading() {
           <p className="text-sm font-medium text-ink">Restoring your session</p>
           <p className="text-xs text-ink-subtle">Verifying your access with the API…</p>
         </div>
-        <Loader2 className="ml-2 h-4 w-4 animate-spin text-accent-700" aria-hidden="true" />
+        <Loader2 className="ml-2 h-4 w-4 animate-spin text-accent" aria-hidden="true" />
       </div>
     </div>
   );
@@ -37,7 +37,7 @@ function SessionLoading() {
 function SessionRedirecting() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-canvas px-4" role="status">
-      <div className="max-w-sm rounded-xl border border-line bg-surface p-6 text-center shadow-card">
+      <div className="max-w-sm rounded-lg border border-line bg-surface p-6 text-center">
         <p className="text-sm font-semibold text-ink">Sign-in required</p>
         <p className="mt-1 text-sm leading-6 text-ink-muted">
           Your session has ended. Redirecting to the sign-in page…

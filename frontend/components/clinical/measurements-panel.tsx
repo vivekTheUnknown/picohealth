@@ -112,7 +112,7 @@ export function MeasurementsPanel({
       key: "window",
       header: "Window",
       render: (measurement) => (
-        <span className="whitespace-nowrap text-[11px] text-ink-subtle">
+        <span className="whitespace-nowrap text-2xs text-ink-subtle">
           {formatWindow(measurement.window_start, measurement.window_end, timeZone) ?? "—"}
         </span>
       ),
@@ -164,9 +164,9 @@ export function MeasurementsPanel({
           ) : null}
 
           {measurements.loading && !measurements.data && source.length === 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton key={index} className="h-32 w-full rounded-lg" />
+                <Skeleton key={index} className="h-28 w-full rounded-none" />
               ))}
             </div>
           ) : source.length === 0 ? (
@@ -175,7 +175,7 @@ export function MeasurementsPanel({
               description="No measurement summaries are available for this patient. The device may not have synced, or monitoring may not have started."
             />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 xl:grid-cols-3">
               {METRIC_ORDER.map((metric) => (
                 <MeasurementCard
                   key={metric}
@@ -188,7 +188,7 @@ export function MeasurementsPanel({
             </div>
           )}
 
-          <p className="text-[11px] leading-5 text-ink-subtle">
+          <p className="text-2xs leading-5 text-ink-subtle">
             Window: {formatDateTime(from, timeZone)} to {formatDateTime(to, timeZone)} ·{" "}
             {source.length} {source.length === 1 ? "summary" : "summaries"}
           </p>
@@ -226,7 +226,7 @@ export function MeasurementsPanel({
           />
         )}
         {sorted.length > 100 ? (
-          <p className="border-t border-line px-4 py-2 text-[11px] text-ink-subtle">
+          <p className="border-t border-line px-4 py-2 text-2xs text-ink-subtle">
             Showing the 100 most recent of {sorted.length} summaries.
           </p>
         ) : null}
@@ -239,7 +239,7 @@ export function MeasurementsPanel({
         {device ? (
           <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Device status
               </dt>
               <dd className="mt-1">
@@ -247,7 +247,7 @@ export function MeasurementsPanel({
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Last contact
               </dt>
               <dd className="mt-1">
@@ -255,13 +255,13 @@ export function MeasurementsPanel({
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Battery
               </dt>
               <dd className="mt-1 text-sm text-ink">{formatBattery(device.battery_level)}</dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Hardware identifier
               </dt>
               <dd className="mt-1 font-mono text-xs text-ink-muted">
@@ -269,19 +269,19 @@ export function MeasurementsPanel({
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Firmware
               </dt>
               <dd className="mt-1 text-sm text-ink">{device.firmware_version ?? "Not reported"}</dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Hardware revision
               </dt>
               <dd className="mt-1 text-sm text-ink">{device.hardware_revision ?? "Not reported"}</dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Assignment
               </dt>
               <dd className="mt-1 text-sm capitalize text-ink">
@@ -291,7 +291,7 @@ export function MeasurementsPanel({
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Device linked
               </dt>
               <dd className="mt-1 text-sm text-ink">
@@ -300,7 +300,7 @@ export function MeasurementsPanel({
             </div>
           </dl>
         ) : (
-          <div className="flex items-start gap-2.5 rounded-lg border border-line bg-slate-50 p-4">
+          <div className="flex items-start gap-2.5 rounded-lg border border-line bg-surface-raised p-4">
             <Watch className="mt-0.5 h-4 w-4 shrink-0 text-ink-subtle" aria-hidden="true" />
             <div>
               <p className="text-sm font-medium text-ink">No device linked or reported</p>

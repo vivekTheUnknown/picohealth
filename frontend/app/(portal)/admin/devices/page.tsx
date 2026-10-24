@@ -248,7 +248,7 @@ export default function AdminDevicesPage() {
           <p className="font-mono text-xs font-medium text-ink">
             {device.hardware_identifier || "Identifier not reported"}
           </p>
-          <p className="mt-0.5 text-[10px] text-ink-subtle">
+          <p className="text-2xs text-ink-subtle">
             {device.hardware_revision ? `HW ${device.hardware_revision}` : "Hardware revision not reported"}
             {device.firmware_version ? ` · FW ${device.firmware_version}` : ""}
           </p>
@@ -267,7 +267,7 @@ export default function AdminDevicesPage() {
         if (!device.patient_link_reported) {
           return (
             <span
-              className="text-[11px] text-ink-subtle"
+              className="text-2xs text-ink-subtle"
               title="This API build does not include patient-link fields in the device registry response."
             >
               Link state not reported
@@ -275,13 +275,13 @@ export default function AdminDevicesPage() {
           );
         }
         if (!device.patient_name && !device.patient_id) {
-          return <span className="text-[11px] text-ink-subtle">Not linked</span>;
+          return <span className="text-2xs text-ink-subtle">Not linked</span>;
         }
         return (
           <div>
             <p className="text-xs text-ink">{device.patient_name ?? "Patient name not reported"}</p>
             {device.patient_id ? (
-              <p className="font-mono text-[10px] text-ink-subtle">{device.patient_id}</p>
+              <p className="font-mono text-2xs text-ink-subtle">{device.patient_id}</p>
             ) : null}
           </div>
         );
@@ -308,7 +308,7 @@ export default function AdminDevicesPage() {
       key: "registered",
       header: "Registered",
       render: (device) => (
-        <span className="whitespace-nowrap text-[11px] text-ink-subtle">
+        <span className="whitespace-nowrap text-2xs text-ink-subtle">
           {formatDateTime(device.registered_at, me?.timezone)}
         </span>
       ),
@@ -323,7 +323,7 @@ export default function AdminDevicesPage() {
             Manage
           </Button>
         ) : (
-          <span className="text-[11px] text-ink-subtle">Read-only</span>
+          <span className="text-2xs text-ink-subtle">Read-only</span>
         ),
     },
   ];
@@ -426,11 +426,11 @@ export default function AdminDevicesPage() {
       ) : null}
 
       <SectionCard bodyClassName="p-0">
-        <div className="flex flex-col gap-3 border-b border-line bg-slate-50/50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="flex flex-col gap-3 border-b border-line bg-surface-raised/50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="min-w-0 flex-1">
             <label
               htmlFor="devices-search"
-              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+              className="mb-1 block text-2xs font-medium text-ink-subtle"
             >
               Search
             </label>
@@ -451,7 +451,7 @@ export default function AdminDevicesPage() {
           <div className="w-full sm:w-44">
             <label
               htmlFor="devices-status"
-              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+              className="mb-1 block text-2xs font-medium text-ink-subtle"
             >
               Device status
             </label>
@@ -505,13 +505,13 @@ export default function AdminDevicesPage() {
         )}
       </SectionCard>
 
-      <p className="text-[11px] leading-5 text-ink-subtle">
+      <p className="text-2xs leading-5 text-ink-subtle">
         Last contact is shown only as reported by the API. “No recent data” means no timestamp was
         available, not that the device is necessarily offline.
       </p>
 
       {rows.length > 0 && rows.every((device) => !device.patient_link_reported) ? (
-        <p className="text-[11px] leading-5 text-ink-subtle">
+        <p className="text-2xs leading-5 text-ink-subtle">
           This API build does not include patient-link fields in the device registry response, so
           the linked-patient column cannot confirm or deny a link. Confirm links from the patient
           workspace, or link and unlink explicitly here.
@@ -615,7 +615,7 @@ export default function AdminDevicesPage() {
               registration. Register it unlinked, then link it from the registry.
             </FormBanner>
           ) : null}
-          <p className="text-[11px] leading-5 text-ink-subtle">
+          <p className="text-2xs leading-5 text-ink-subtle">
             Registration records the device; it does not start monitoring. Verify firmware and the
             patient link before relying on incoming data.
           </p>
@@ -801,7 +801,7 @@ export default function AdminDevicesPage() {
                     : "Clear the current patient link."}
               </p>
             ) : null}
-            <p className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning-subtle px-3 py-2 text-xs text-warning">
               <Watch className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               Confirm that the hardware identifier matches the physical device. The API records this
               change in the audit log.

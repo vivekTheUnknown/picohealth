@@ -17,27 +17,27 @@ const USER_STATUS: Record<
   active: {
     label: "Active",
     icon: CheckCircle2,
-    classes: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    classes: "border-success/30 bg-success-subtle text-success",
   },
   invited: {
     label: "Invited",
     icon: Mail,
-    classes: "border-ocean-200 bg-ocean-50 text-ocean-800",
+    classes: "border-info/30 bg-info-subtle text-info",
   },
   suspended: {
     label: "Suspended",
     icon: ShieldAlert,
-    classes: "border-red-200 bg-red-50 text-red-800",
+    classes: "border-danger/30 bg-danger-subtle text-danger",
   },
   deactivated: {
     label: "Deactivated",
     icon: UserX,
-    classes: "border-line-strong bg-slate-100 text-slate-700",
+    classes: "border-line bg-surface-active text-ink-muted",
   },
   unknown: {
     label: "Unknown status",
     icon: CircleHelp,
-    classes: "border-line-strong bg-slate-100 text-slate-700",
+    classes: "border-line bg-surface-active text-ink-muted",
   },
 };
 
@@ -47,7 +47,7 @@ export function UserStatusBadge({ status }: { status: UserStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium",
+        "inline-flex items-center gap-1 h-5 rounded-sm border px-1.5 text-2xs font-medium",
         config.classes,
       )}
     >
@@ -64,22 +64,22 @@ const VERIFICATION: Record<
   verified: {
     label: "Verified",
     icon: CheckCircle2,
-    classes: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    classes: "border-success/30 bg-success-subtle text-success",
   },
   pending: {
     label: "Verification pending",
     icon: Mail,
-    classes: "border-amber-200 bg-amber-50 text-amber-900",
+    classes: "border-warning/30 bg-warning-subtle text-warning",
   },
   rejected: {
     label: "Verification rejected",
     icon: ShieldAlert,
-    classes: "border-red-200 bg-red-50 text-red-800",
+    classes: "border-danger/30 bg-danger-subtle text-danger",
   },
   unknown: {
     label: "Verification unknown",
     icon: CircleHelp,
-    classes: "border-line-strong bg-slate-100 text-slate-700",
+    classes: "border-line bg-surface-active text-ink-muted",
   },
 };
 
@@ -96,7 +96,7 @@ export function VerificationBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium",
+        "inline-flex items-center gap-1 h-5 rounded-sm border px-1.5 text-2xs font-medium",
         config.classes,
         className,
       )}

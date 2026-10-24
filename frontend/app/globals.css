@@ -2,23 +2,144 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens — implemented from style.md §2.
+ *
+ * Every colour, radius, duration and font stack is declared once, here. The
+ * Tailwind theme only maps names onto these variables, so a light theme is a
+ * `:root[data-theme="light"]` override with no component changes.
+ *
+ * Colours are stored as raw RGB channels ("62 207 142") rather than hex so
+ * Tailwind's opacity modifier works — `ring-accent/25` needs
+ * `rgb(var(--accent) / 0.25)`. With hex values the modifier silently falls back
+ * to Tailwind's default blue ring.
+ *
+ * Contrast was verified before implementation, as style.md §2 requires:
+ *   text-primary   on surface 13.57:1
+ *   text-secondary on surface  7.20:1
+ *   text-muted     on surface  5.65:1  (raised from #78828C, which measured
+ *                                       4.18:1 and failed WCAG 1.4.3)
+ *   accent         on surface  8.19:1
+ *   accent-fg      on accent   8.61:1
+ *   focus ring     on surface  9.86:1
+ *   control border on surface  3.40:1  (WCAG 1.4.11 needs 3:1)
+ *   danger-fg      on danger   6.24:1
+ */
+
 @layer base {
   :root {
-    color-scheme: light;
+    color-scheme: dark;
+
+    /* --- surfaces ------------------------------------------------------ */
+    --app-bg: 23 25 28;
+    --sidebar-bg: 20 22 25;
+    --surface: 29 32 36;
+    --surface-raised: 35 39 44;
+    --surface-active: 41 47 52;
+    --surface-inset: 25 28 31;
+
+    /* --- borders ------------------------------------------------------- */
+    /* Dividers and grouping. Decorative, so not held to 3:1. */
+    --border: 48 53 59;
+    --border-subtle: 39 44 49;
+    --border-strong: 59 67 75;
+    /* Interactive control boundaries. WCAG 2.2 AA 1.4.11 requires 3:1. */
+    --border-control: 106 115 125;
+
+    /* --- text ---------------------------------------------------------- */
+    --text-primary: 232 234 237;
+    --text-secondary: 165 173 181;
+    --text-muted: 143 153 163;
+
+    /* --- accent -------------------------------------------------------- */
+    --accent: 62 207 142;
+    --accent-hover: 85 217 157;
+    --accent-subtle: 24 57 45;
+    --accent-fg: 11 31 23;
+    --focus-ring: 100 223 168;
+
+    /* --- semantic ------------------------------------------------------ */
+    --success: 62 207 142;
+    --success-subtle: 24 57 45;
+    --success-fg: 11 31 23;
+    --warning: 231 180 85;
+    --warning-subtle: 58 48 32;
+    --warning-fg: 36 27 14;
+    --danger: 240 113 120;
+    --danger-subtle: 58 34 38;
+    --danger-fg: 42 15 18;
+    --info: 120 169 250;
+    --info-subtle: 32 47 69;
+    --info-fg: 14 26 43;
+
+    /* --- charts -------------------------------------------------------- */
+    --chart-grid: 39 44 49;
+    --chart-axis: 143 153 163;
+    --chart-baseline: 74 84 94;
+
+    /* --- overlay ------------------------------------------------------- */
+    --overlay: rgb(0 0 0 / 0.66);
+
+    /* --- type ---------------------------------------------------------- */
+    --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui,
+      -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco,
+      Consolas, "Liberation Mono", monospace;
+
+    /* --- radii --------------------------------------------------------- */
+    --radius-sm: 4px;
+    --radius: 6px;
+    --radius-lg: 8px;
+
+    /* --- motion (style.md §8: 100–160ms) ------------------------------- */
+    --duration-fast: 100ms;
+    --duration: 140ms;
+    --duration-slow: 160ms;
+    --ease: cubic-bezier(0.2, 0, 0, 1);
   }
 
   html {
     -webkit-text-size-adjust: 100%;
     scrollbar-gutter: stable;
+    height: 100%;
   }
 
   body {
     @apply bg-canvas text-ink antialiased;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+    min-height: 100%;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  /* Visible keyboard focus everywhere. Form controls use their own ring. */
+  /* Page title 20–24px; section title 14–16px (style.md §3). */
+  h1 {
+    font-size: 1.375rem; /* 22px */
+    line-height: 1.75rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  h2 {
+    font-size: 1rem; /* 16px */
+    line-height: 1.375rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  h3 {
+    font-size: 0.9375rem; /* 15px */
+    line-height: 1.25rem;
+    font-weight: 600;
+  }
+  h4 {
+    font-size: 0.875rem; /* 14px */
+    line-height: 1.25rem;
+    font-weight: 600;
+  }
+
+  /* Keyboard focus is always visible and never removed. */
   :focus-visible {
-    outline: 2px solid #1d9c8f;
+    outline: 2px solid rgb(var(--focus-ring));
     outline-offset: 2px;
   }
 
@@ -29,16 +150,67 @@
   }
 
   ::selection {
-    @apply bg-accent-200 text-ink;
+    background: rgb(var(--accent-subtle));
+    color: rgb(var(--text-primary));
+  }
+
+  * {
+    scrollbar-color: rgb(var(--border-strong)) transparent;
+    scrollbar-width: thin;
+  }
+
+  /* Numbers that line up column-to-column. */
+  .tabular,
+  th,
+  td {
+    font-variant-numeric: tabular-nums;
   }
 }
 
 @layer components {
+  /* A bordered surface. The only "card" primitive in the system. */
+  .panel {
+    @apply rounded-lg border border-line bg-surface;
+  }
+
   .skip-link {
     @apply sr-only;
   }
 
   .skip-link:focus {
-    @apply not-sr-only fixed left-4 top-4 z-[100] rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-accent-900 shadow-raised;
+    @apply not-sr-only fixed left-4 top-4 z-[100] rounded-md border border-line bg-surface px-3 py-2 text-sm font-medium text-ink shadow-raised;
+  }
+
+  /* Technical identifiers only: device IDs, firmware, event codes, request IDs. */
+  .mono-id {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: -0.01em;
+    color: rgb(var(--text-muted));
+  }
+
+  /* Selects keep a visible chevron after appearance is reset. */
+  select.control-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238F99A3' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.625rem center;
+    background-size: 12px 12px;
+  }
+
+  /* Horizontal scroll container for tables on narrow screens. */
+  .table-scroll {
+    @apply -mx-px overflow-x-auto;
+  }
+}
+
+/* style.md §8: honour reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

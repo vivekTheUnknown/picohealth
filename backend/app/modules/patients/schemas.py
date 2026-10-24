@@ -11,7 +11,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.enums import PatientStatus
+from app.core.enums import EventStatus, PatientStatus, Severity
 
 
 class PatientCreate(BaseModel):
@@ -40,6 +40,21 @@ class PatientResponse(BaseModel):
     created_at: datetime
 
 
+class LatestEvent(BaseModel):
+    """Compact event summary for a patient row.
+
+    Deliberately minimal: a list row needs severity, state, type and time. Full
+    evidence and transition history belong to the event detail endpoint.
+    """
+
+    id: uuid.UUID
+    patient_id: uuid.UUID
+    event_type: str
+    severity: Severity
+    status: EventStatus
+    start_at: datetime
+
+
 class PatientListItem(BaseModel):
     id: uuid.UUID
     patient_code: str
@@ -48,6 +63,9 @@ class PatientListItem(BaseModel):
     last_sync_at: datetime | None = None
     active_event_count: int = 0
     device_status: str | None = None
+    # Without this a row can say "no recent event" while also showing an
+    # active-event count, which is a contradiction on the primary screen.
+    latest_event: LatestEvent | None = None
 
 
 class PatientOverview(BaseModel):

@@ -105,20 +105,20 @@ export default function RecoverPage() {
         title="Choose a new password"
         description="This link can be used once and expires for your security."
         footer={
-          <Link href="/login" className="font-medium text-accent-800 underline-offset-2 hover:underline">
+          <Link href="/login" className="font-medium text-accent underline-offset-2 hover:underline">
             Back to sign in
           </Link>
         }
       >
         {resetMessage ? (
           <div className="space-y-4">
-            <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+            <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success-subtle p-3 text-sm text-success">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <p>{resetMessage}</p>
             </div>
             <Link
               href="/login"
-              className="inline-flex w-full items-center justify-center rounded-lg bg-accent-700 px-4 py-2 text-sm font-medium text-white hover:bg-accent-800"
+              className="inline-flex w-full items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg hover:bg-accent-hover"
             >
               Continue to sign in
             </Link>
@@ -184,14 +184,14 @@ export default function RecoverPage() {
       title="Recover your account"
       description="Enter your account email. If it exists, you will receive a reset link."
       footer={
-        <Link href="/login" className="font-medium text-accent-800 underline-offset-2 hover:underline">
+        <Link href="/login" className="font-medium text-accent underline-offset-2 hover:underline">
           Back to sign in
         </Link>
       }
     >
       {requested ? (
         <div className="space-y-4">
-          <div className="flex items-start gap-2 rounded-lg border border-ocean-200 bg-ocean-50 p-3 text-sm text-ocean-900">
+          <div className="flex items-start gap-2 rounded-lg border border-info/30 bg-info-subtle p-3 text-sm text-info">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <p>{requested}</p>
           </div>

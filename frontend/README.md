@@ -174,6 +174,50 @@ lib/
   use-api.ts         data loading and mutation hooks
 ```
 
+## Styling system
+
+The visual layer follows `../style.md` and is built bottom-up: tokens → primitives
+→ shell → screens.
+
+**Tokens.** Every colour, radius, duration and font stack is declared once in
+`app/globals.css`. `tailwind.config.ts` only maps semantic names onto those
+variables. Colours are stored as raw RGB channels (`--accent: 62 207 142`) so
+Tailwind's opacity modifier works — with hex values, `ring-accent/25` silently
+falls back to Tailwind's default blue.
+
+Adding a light theme means overriding `:root[data-theme="light"]` with the same
+variable names. No component changes.
+
+**Verified contrast** (WCAG 2.2 AA, checked before implementation as §2 requires):
+
+| Pair | Ratio | Requirement |
+|---|---|---|
+| `text-primary` on `surface` | 13.57:1 | 4.5 |
+| `text-secondary` on `surface` | 7.20:1 | 4.5 |
+| `text-muted` on `surface` | 5.65:1 | 4.5 |
+| `accent` on `surface` | 8.19:1 | 4.5 |
+| `accent-fg` on `accent` | 8.61:1 | 4.5 |
+| `border-control` on `surface` | 3.40:1 | 3.0 |
+
+`--text-muted` was raised from the guide's starting `#78828C` (4.18:1, failing)
+to `#8F99A3`. `--border-control` is separate from `--border` because an input's
+outline is the information that identifies the control (WCAG 1.4.11), while a
+divider is decorative.
+
+**Primitives.** `panel`/`SectionCard`, `DataTable` (40–48px rows, sticky header
+option, content-driven height), `Button` (32px toolbar / 38px form heights),
+`Field`/`Input`, `Badge` (text + icon + tone), `StatCard` (a strip cell, not a
+tile), `Tabs`, `EmptyState`, `ErrorState`, `PermissionDenied`.
+
+**Composition rules applied.** KPI cells share one hairline-divided panel rather
+than four floating tiles; the measurement strip is one bordered grid of
+borderless cells; tables replace card lists for patients, events, users,
+devices, assignments and audit; the patient workspace no longer nests panels
+inside a tabbed panel.
+
+**Motion.** 100–160ms transitions, no decorative animation, and
+`prefers-reduced-motion` collapses all durations.
+
 ## Accessibility
 
 - Keyboard-operable tabs, menus, and modals, including focus trapping and focus

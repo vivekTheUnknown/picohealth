@@ -173,16 +173,17 @@ export async function listPatientEvents(
 }
 
 /**
- * The published contract has no global event-list endpoint. Prefer
- * `GET /events` when a backend build exposes it, then fall back to the events
- * embedded in the doctor overview. The fallback is deliberately labelled in
- * the UI rather than pretending the list is complete.
+ * All events across the caller's assigned patients.
+ *
+ * `GET /alerts` is the published endpoint. If a deployment predates it, fall
+ * back to the events embedded in the doctor overview and label the result as
+ * incomplete rather than pretending the list is whole.
  */
 export async function listEvents(
   signal?: AbortSignal,
 ): Promise<{ events: Event[]; source: "events" | "overview" }> {
   try {
-    const raw = await api.get<unknown>(`${API}/events`, { signal });
+    const raw = await api.get<unknown>(`${API}/alerts`, { signal });
     return { events: normalizeEventList(raw), source: "events" };
   } catch (error) {
     if (error instanceof ApiError && (error.isUnauthorized || error.isForbidden)) throw error;

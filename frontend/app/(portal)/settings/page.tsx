@@ -92,7 +92,7 @@ export default function SettingsPage() {
         >
           <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Display name
               </dt>
               <dd className="mt-1 flex items-center gap-2 text-sm text-ink">
@@ -101,13 +101,13 @@ export default function SettingsPage() {
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Email
               </dt>
               <dd className="mt-1 break-all text-sm text-ink">{me.email || "Not reported"}</dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Account status
               </dt>
               <dd className="mt-1">
@@ -115,7 +115,7 @@ export default function SettingsPage() {
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Roles
               </dt>
               <dd className="mt-1 flex flex-wrap gap-1">
@@ -127,7 +127,7 @@ export default function SettingsPage() {
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Doctor verification
               </dt>
               <dd className="mt-1">
@@ -135,7 +135,7 @@ export default function SettingsPage() {
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Last sign-in
               </dt>
               <dd className="mt-1 text-sm text-ink">
@@ -143,7 +143,7 @@ export default function SettingsPage() {
               </dd>
             </div>
             <div className="sm:col-span-2">
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+              <dt className="text-2xs font-medium text-ink-subtle">
                 Account ID
               </dt>
               <dd className="mt-1 break-all font-mono text-xs text-ink-muted">
@@ -169,7 +169,7 @@ export default function SettingsPage() {
               <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
               Sign out
             </Button>
-            <p className="text-[11px] leading-5 text-ink-subtle">
+            <p className="text-2xs leading-5 text-ink-subtle">
               Display time zone: <span className="font-medium text-ink-muted">{me.timezone}</span>.
               Changing profile time zone is not supported by the current API contract; contact an
               administrator if it is wrong.
@@ -241,7 +241,7 @@ export default function SettingsPage() {
             </Field>
 
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[11px] leading-5 text-ink-subtle">
+              <p className="text-2xs leading-5 text-ink-subtle">
                 Changing your password may end other sessions. You will remain signed in here unless
                 the API says otherwise.
               </p>
@@ -259,11 +259,11 @@ export default function SettingsPage() {
         >
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-xs text-ink-muted">
-              <ShieldCheck className="h-4 w-4 text-accent-700" aria-hidden="true" />
+              <ShieldCheck className="h-4 w-4 text-accent" aria-hidden="true" />
               {pluralize(me.permissions.length, "permission")} reported
             </div>
             {me.permissions.length === 0 ? (
-              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+              <p className="rounded-md border border-warning/30 bg-warning-subtle px-3 py-2 text-xs leading-5 text-warning">
                 The API reported no permissions. Pages may still be visible in navigation, but the
                 API will refuse protected requests.
               </p>
@@ -273,14 +273,14 @@ export default function SettingsPage() {
                   <li
                     key={permission}
                     title={permission}
-                    className="rounded-md border border-line bg-slate-50 px-2 py-1 text-[11px] text-ink-muted"
+                    className="rounded-md border border-line bg-surface-raised px-2 py-1 text-2xs text-ink-muted"
                   >
                     {humanizePermission(permission)}
                   </li>
                 ))}
               </ul>
             )}
-            <p className="text-[11px] leading-5 text-ink-subtle">
+            <p className="text-2xs leading-5 text-ink-subtle">
               To request a role or assignment change, contact an administrator. The portal does not
               let users grant themselves permissions.
             </p>

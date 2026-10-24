@@ -4,7 +4,7 @@ export function Skeleton({ className }: { className?: string }) {
   return (
     <div
       aria-hidden="true"
-      className={cn("animate-pulse rounded-md bg-slate-200/80", className)}
+      className={cn("animate-pulse rounded-md bg-line/80", className)}
     />
   );
 }
@@ -24,15 +24,12 @@ export function SkeletonText({ lines = 3, className }: { lines?: number; classNa
 
 export function StatGridSkeleton({ count = 4 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
       {Array.from({ length: count }).map((_, index) => (
-        <div key={index} className="rounded-xl border border-line bg-surface p-4">
-          <div className="flex justify-between">
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-8 w-8 rounded-lg" />
-          </div>
-          <Skeleton className="mt-4 h-8 w-16" />
-          <Skeleton className="mt-2 h-3 w-32" />
+        <div key={index} className="bg-surface px-4 py-3">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="mt-3 h-6 w-12" />
+          <Skeleton className="mt-2 h-2.5 w-32" />
         </div>
       ))}
     </div>
@@ -41,13 +38,13 @@ export function StatGridSkeleton({ count = 4 }: { count?: number }) {
 
 export function TableSkeleton({ rows = 6, columns = 4 }: { rows?: number; columns?: number }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-line bg-surface">
-      <div className="border-b border-line bg-slate-50 px-4 py-3">
+    <div className="overflow-hidden rounded-lg border border-line bg-surface">
+      <div className="border-b border-line bg-surface-raised px-4 py-3">
         <Skeleton className="h-3.5 w-40" />
       </div>
       <div className="divide-y divide-line">
         {Array.from({ length: rows }).map((_, rowIndex) => (
-          <div key={rowIndex} className="grid gap-4 px-4 py-3.5" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+          <div key={rowIndex} className="grid gap-4 px-4 py-3" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
             {Array.from({ length: columns }).map((_, columnIndex) => (
               <Skeleton
                 key={columnIndex}

@@ -21,7 +21,11 @@ export interface TabsProps {
   className?: string;
 }
 
-/** WAI-ARIA tabs with roving focus and arrow-key navigation. */
+/**
+ * WAI-ARIA tabs with roving focus and arrow-key navigation.
+ * The selected tab uses the accent underline plus a text-weight change, so the
+ * active state does not depend on colour alone.
+ */
 export function Tabs({ items, value, onChange, idPrefix, panelId, ariaLabel, className }: TabsProps) {
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -49,7 +53,7 @@ export function Tabs({ items, value, onChange, idPrefix, panelId, ariaLabel, cla
       ref={listRef}
       role="tablist"
       aria-label={ariaLabel}
-      className={cn("flex gap-1 overflow-x-auto border-b border-line", className)}
+      className={cn("flex gap-0.5 overflow-x-auto border-b border-line", className)}
     >
       {items.map((item, index) => {
         const selected = item.id === value;
@@ -65,15 +69,20 @@ export function Tabs({ items, value, onChange, idPrefix, panelId, ariaLabel, cla
             onClick={() => onChange(item.id)}
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={cn(
-              "-mb-px inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm transition-colors",
+              "-mb-px inline-flex h-10 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 text-sm transition-colors duration-fast",
               selected
-                ? "border-accent-700 font-medium text-accent-900"
+                ? "border-accent font-medium text-ink"
                 : "border-transparent text-ink-muted hover:border-line-strong hover:text-ink",
             )}
           >
             {item.label}
             {item.count !== undefined && item.count !== null ? (
-              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-ink-muted">
+              <span
+                className={cn(
+                  "rounded-sm px-1.5 py-0.5 text-2xs tabular",
+                  selected ? "bg-accent-subtle text-accent" : "bg-surface-active text-ink-muted",
+                )}
+              >
                 {item.count}
               </span>
             ) : null}

@@ -15,7 +15,7 @@ import {
 } from "recharts";
 
 import { cn } from "@/lib/cn";
-import { METRIC_CHART_COLORS } from "@/lib/constants";
+import { CHART_TOKENS, METRIC_CHART_COLORS } from "@/lib/constants";
 import {
   formatAxisTick,
   formatDateTime,
@@ -118,7 +118,7 @@ export function TrendChart({
 }: TrendChartProps) {
   const data = useMemo(() => buildTrendData(measurements, metric), [measurements, metric]);
   const points = useMemo(() => data.filter((point) => point.value !== null), [data]);
-  const color = METRIC_CHART_COLORS[metric] ?? "#0f7f76";
+  const color = METRIC_CHART_COLORS[metric] ?? CHART_TOKENS.accent;
   const label = humanizeMetric(metric);
   const unit = measurements.find((measurement) => measurement.metric_type === metric)?.unit ?? "";
   const span = Math.max(1, toMs - fromMs);
@@ -127,7 +127,7 @@ export function TrendChart({
     return (
       <div
         className={cn(
-          "flex flex-col items-center justify-center rounded-lg border border-dashed border-line-strong bg-slate-50/50 px-4 text-center",
+          "flex flex-col items-center justify-center rounded-lg border border-dashed border-line-strong bg-surface-raised/50 px-4 text-center",
           className,
         )}
         style={{ height }}
@@ -158,7 +158,7 @@ export function TrendChart({
           {label}
           {unit ? <span className="font-normal text-ink-subtle">({unit})</span> : null}
         </span>
-        <span className="text-[11px] text-ink-subtle">
+        <span className="text-2xs text-ink-subtle">
           {points.length} {points.length === 1 ? "value" : "values"}
         </span>
       </div>
@@ -166,12 +166,12 @@ export function TrendChart({
       <div role="img" aria-label={ariaSummary} style={{ width: "100%", height }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-            <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid stroke={CHART_TOKENS.grid} strokeDasharray="3 3" vertical={false} />
             {baseline && baseline.low !== null && baseline.high !== null ? (
               <ReferenceArea
                 y1={baseline.low}
                 y2={baseline.high}
-                fill="#64748b"
+                fill={CHART_TOKENS.axis}
                 fillOpacity={0.06}
                 stroke="none"
               />
@@ -179,12 +179,12 @@ export function TrendChart({
             {baseline && baseline.value !== null ? (
               <ReferenceLine
                 y={baseline.value}
-                stroke="#64748b"
+                stroke={CHART_TOKENS.axis}
                 strokeDasharray="4 4"
                 label={{
                   value: "Personal baseline",
                   position: "insideTopRight",
-                  fill: "#64748b",
+                  fill: CHART_TOKENS.axis,
                   fontSize: 10,
                 }}
               />
@@ -195,22 +195,22 @@ export function TrendChart({
               scale="time"
               domain={[fromMs, toMs]}
               tickFormatter={(value) => formatAxisTick(Number(value), timeZone, span)}
-              tick={{ fontSize: 11, fill: "#64748b" }}
-              stroke="#cbd5e1"
+              tick={{ fontSize: 11, fill: CHART_TOKENS.axis }}
+              stroke={CHART_TOKENS.grid}
               minTickGap={32}
             />
             <YAxis
               domain={["auto", "auto"]}
               width={48}
-              tick={{ fontSize: 11, fill: "#64748b" }}
-              stroke="#cbd5e1"
+              tick={{ fontSize: 11, fill: CHART_TOKENS.axis }}
+              stroke={CHART_TOKENS.grid}
               tickFormatter={(value) => formatNumber(Number(value), 0)}
             />
             <Tooltip
               content={(props) => (
                 <ChartTooltip {...props} unit={unit} timeZone={timeZone} />
               )}
-              cursor={{ stroke: "#94a3b8", strokeDasharray: "3 3" }}
+              cursor={{ stroke: CHART_TOKENS.baseline, strokeDasharray: "3 3" }}
             />
             <Line
               type="monotone"
@@ -228,13 +228,13 @@ export function TrendChart({
       </div>
 
       <details className="mt-1.5">
-        <summary className="cursor-pointer select-none text-xs text-accent-800 hover:underline">
+        <summary className="cursor-pointer select-none text-xs text-accent hover:underline">
           View underlying values
         </summary>
         <div className="mt-2 max-h-48 overflow-auto rounded-md border border-line">
           <table className="min-w-full text-left text-xs">
             <caption className="sr-only">{label} recorded values</caption>
-            <thead className="sticky top-0 bg-slate-50">
+            <thead className="sticky top-0 bg-surface-raised">
               <tr>
                 <th scope="col" className="px-2 py-1.5 font-medium text-ink-subtle">
                   Time
@@ -259,7 +259,7 @@ export function TrendChart({
           </table>
         </div>
         {points.length > 200 ? (
-          <p className="mt-1 text-[11px] text-ink-subtle">Showing the 200 most recent values.</p>
+          <p className="mt-1 text-2xs text-ink-subtle">Showing the 200 most recent values.</p>
         ) : null}
       </details>
     </div>

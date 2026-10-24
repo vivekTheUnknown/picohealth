@@ -19,13 +19,24 @@ export const TREND_METRICS: MetricType[] = [
   "hrv",
 ];
 
+/**
+ * Chart chrome. Recharts takes SVG attributes, so these mirror the CSS tokens in
+ * `globals.css` — keep the two in step when the palette changes.
+ */
+export const CHART_TOKENS = {
+  grid: "#272C31", // --chart-grid
+  axis: "#8F99A3", // --chart-axis
+  baseline: "#4A545E", // --chart-baseline
+  accent: "#3ECF8E", // --accent
+} as const;
+
 export const METRIC_CHART_COLORS: Record<string, string> = {
-  heart_rate: "#0f7f76",
-  spo2: "#2563eb",
-  respiratory_rate: "#7c3aed",
-  skin_temperature: "#0891b2",
-  hrv: "#4f46e5",
-  activity: "#475569",
+  heart_rate: "#3ECF8E",
+  spo2: "#78A9FA",
+  respiratory_rate: "#C6A0F6",
+  skin_temperature: "#E7B455",
+  hrv: "#5FD0D8",
+  activity: "#A5ADB5",
 };
 
 export type TrendRangeKey = "1h" | "6h" | "24h" | "7d" | "30d";

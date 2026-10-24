@@ -149,7 +149,7 @@ export function NotesPanel({
             </Field>
 
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[11px] leading-5 text-ink-subtle">
+              <p className="text-2xs leading-5 text-ink-subtle">
                 The API records the author and timestamp. Notes are retained according to the
                 project's retention policy.
               </p>
@@ -161,7 +161,7 @@ export function NotesPanel({
           </form>
         </SectionCard>
       ) : (
-        <div className="flex items-start gap-2.5 rounded-lg border border-line bg-slate-50 p-4">
+        <div className="flex items-start gap-2.5 rounded-lg border border-line bg-surface-raised p-4">
           <Lock className="mt-0.5 h-4 w-4 shrink-0 text-ink-subtle" aria-hidden="true" />
           <div>
             <p className="text-sm font-medium text-ink">Read-only notes</p>
@@ -213,7 +213,7 @@ export function NotesPanel({
             />
           ) : (
             <>
-              <p className="text-[11px] text-ink-subtle">{pluralize(rows.length, "note")}</p>
+              <p className="text-2xs text-ink-subtle">{pluralize(rows.length, "note")}</p>
               <ol className="space-y-2.5">
                 {rows.map((note) => (
                   <li key={note.id} className="rounded-lg border border-line bg-surface p-3.5 sm:p-4">
@@ -221,7 +221,7 @@ export function NotesPanel({
                       <p className="text-xs font-semibold text-ink">
                         {note.author_name ?? "Author not reported"}
                       </p>
-                      <p className="text-[11px] text-ink-subtle">
+                      <p className="text-2xs text-ink-subtle">
                         {formatDateTime(note.created_at, timeZone)}
                         {note.updated_at && note.updated_at !== note.created_at
                           ? ` · edited ${formatDateTime(note.updated_at, timeZone)}`
@@ -234,7 +234,7 @@ export function NotesPanel({
                     {note.related_event_id ? (
                       <Link
                         href={`/alerts?event=${encodeURIComponent(note.related_event_id)}`}
-                        className="mt-2 inline-flex rounded text-[11px] font-medium text-accent-800 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
+                        className="mt-2 inline-flex rounded text-2xs font-medium text-accent underline-offset-2 hover:underline focus-visible:outline-none"
                       >
                         Related event
                       </Link>

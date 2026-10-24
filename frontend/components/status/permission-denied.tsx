@@ -28,27 +28,25 @@ export function PermissionDenied({
     <div
       role="status"
       className={cn(
-        "rounded-xl border border-amber-200 bg-amber-50/60 p-6 sm:p-8",
+        "rounded-md border border-warning/30 bg-warning-subtle/30 p-4",
         className,
       )}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-800">
-          <ShieldAlert className="h-5 w-5" aria-hidden="true" />
-        </span>
+      <div className="flex items-start gap-2.5">
+        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-amber-950">{title}</h2>
-          <div className="mt-1 max-w-2xl text-sm leading-6 text-amber-900/90">{description}</div>
+          <h2 className="text-sm font-semibold text-ink">{title}</h2>
+          <div className="mt-1 max-w-2xl text-xs leading-5 text-ink-muted">{description}</div>
           {detail ? (
-            <p className="mt-2 rounded-md bg-amber-100/70 px-2.5 py-1.5 text-xs text-amber-900">
+            <p className="mt-2 rounded-sm border border-warning/20 bg-warning-subtle/50 px-2 py-1 text-2xs text-ink-muted">
               Server response: {detail}
             </p>
           ) : null}
-          <p className="mt-2 text-xs leading-5 text-amber-900/70">
+          <p className="mt-2 text-2xs leading-4 text-ink-subtle">
             Access is enforced by the API. If this is unexpected, contact an administrator to
             review your role or patient assignment.
           </p>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {actions ?? (
               <Link href="/overview" className={buttonClasses("secondary", "sm")}>
                 Back to clinical overview

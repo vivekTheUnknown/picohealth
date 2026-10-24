@@ -10,7 +10,7 @@ import {
   listUsers,
   updateAssignment,
 } from "@/lib/api";
-import { formatDateTime, pluralize } from "@/lib/format";
+import { formatDateTime, pluralize, shortId } from "@/lib/format";
 import { hasPermission, isAdmin, PERMISSIONS } from "@/lib/permissions";
 import { useSession } from "@/lib/session";
 import { useApi, useAsyncAction } from "@/lib/use-api";
@@ -35,10 +35,10 @@ function AssignmentStatus({ status }: { status: string }) {
       <span
         className={
           status === "active"
-            ? "h-1.5 w-1.5 rounded-full bg-emerald-500"
+            ? "h-1.5 w-1.5 rounded-full bg-success"
             : status === "ended"
-              ? "h-1.5 w-1.5 rounded-full bg-slate-400"
-              : "h-1.5 w-1.5 rounded-full bg-amber-500"
+              ? "h-1.5 w-1.5 rounded-full bg-ink-subtle"
+              : "h-1.5 w-1.5 rounded-full bg-warning"
         }
         aria-hidden="true"
       />
@@ -160,8 +160,9 @@ export default function AdminAssignmentsPage() {
           <p className="text-xs font-medium text-ink">
             {assignment.patient_name ?? "Patient not reported"}
           </p>
-          <p className="font-mono text-[10px] text-ink-subtle">
-            {assignment.patient_code ?? assignment.patient_id ?? "No identifier"}
+          <p className="mono-id truncate" title={assignment.patient_id ?? undefined}>
+            {assignment.patient_code ||
+              (assignment.patient_id ? shortId(assignment.patient_id) : "No identifier")}
           </p>
         </div>
       ),
@@ -174,8 +175,12 @@ export default function AdminAssignmentsPage() {
           <p className="text-xs font-medium text-ink">
             {assignment.doctor_name ?? "Doctor not reported"}
           </p>
-          <p className="text-[10px] text-ink-subtle">
-            {assignment.doctor_email ?? assignment.doctor_user_id ?? ""}
+          <p
+            className="mono-id truncate"
+            title={assignment.doctor_user_id ?? undefined}
+          >
+            {assignment.doctor_email ||
+              (assignment.doctor_user_id ? shortId(assignment.doctor_user_id) : "")}
           </p>
         </div>
       ),
@@ -196,7 +201,7 @@ export default function AdminAssignmentsPage() {
       key: "dates",
       header: "Starts / ends",
       render: (assignment) => (
-        <div className="whitespace-nowrap text-[11px] text-ink-muted">
+        <div className="whitespace-nowrap text-2xs text-ink-muted">
           <p>{assignment.starts_at ? formatDateTime(assignment.starts_at, me?.timezone) : "Start not reported"}</p>
           <p className="text-ink-subtle">
             {assignment.ends_at ? `Ends ${formatDateTime(assignment.ends_at, me?.timezone)}` : "No end reported"}
@@ -210,11 +215,16 @@ export default function AdminAssignmentsPage() {
       align: "right",
       render: (assignment) =>
         canManage && assignment.status === "active" ? (
-          <Button variant="secondary" size="sm" onClick={() => setEnding(assignment)}>
-            End…
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setEnding(assignment)}
+            aria-label={`End the assignment for ${assignment.patient_name ?? "this patient"}`}
+          >
+            End assignment
           </Button>
         ) : (
-          <span className="text-[11px] text-ink-subtle">
+          <span className="text-2xs text-ink-subtle">
             {assignment.status === "active" ? "Read-only" : "Closed"}
           </span>
         ),
@@ -319,11 +329,11 @@ export default function AdminAssignmentsPage() {
       ) : null}
 
       <SectionCard bodyClassName="p-0">
-        <div className="flex flex-col gap-3 border-b border-line bg-slate-50/50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="flex flex-col gap-3 border-b border-line bg-surface-raised/50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="min-w-0 flex-1">
             <label
               htmlFor="assignments-search"
-              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+              className="mb-1 block text-2xs font-medium text-ink-subtle"
             >
               Search
             </label>
@@ -344,7 +354,7 @@ export default function AdminAssignmentsPage() {
           <div className="w-full sm:w-36">
             <label
               htmlFor="assignments-status"
-              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+              className="mb-1 block text-2xs font-medium text-ink-subtle"
             >
               Status
             </label>
@@ -361,7 +371,7 @@ export default function AdminAssignmentsPage() {
           <div className="w-full sm:w-40">
             <label
               htmlFor="assignments-type"
-              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+              className="mb-1 block text-2xs font-medium text-ink-subtle"
             >
               Responsibility
             </label>
@@ -412,7 +422,7 @@ export default function AdminAssignmentsPage() {
         )}
       </SectionCard>
 
-      <p className="text-[11px] leading-5 text-ink-subtle">
+      <p className="text-2xs leading-5 text-ink-subtle">
         Assignments determine which patients a doctor may request. The API checks the active
         assignment on every patient-scoped request; this page is not the security boundary.
       </p>
@@ -509,13 +519,13 @@ export default function AdminAssignmentsPage() {
           </Field>
 
           {!patients.loading && activePatients.length === 0 ? (
-            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+            <p className="rounded-md border border-warning/30 bg-warning-subtle px-3 py-2 text-xs leading-5 text-warning">
               No active patients are available. Register and activate a patient before assigning a
               doctor.
             </p>
           ) : null}
           {!doctors.loading && activeDoctors.length === 0 ? (
-            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+            <p className="rounded-md border border-warning/30 bg-warning-subtle px-3 py-2 text-xs leading-5 text-warning">
               No active doctors are available. Invite and activate a doctor account first.
             </p>
           ) : null}
@@ -549,7 +559,7 @@ export default function AdminAssignmentsPage() {
           </div>
 
           {validation ? (
-            <p role="alert" className="text-xs font-medium text-red-700">
+            <p role="alert" className="text-xs font-medium text-danger">
               {validation}
             </p>
           ) : null}
@@ -595,7 +605,7 @@ export default function AdminAssignmentsPage() {
                 <dd className="text-right text-ink">{typeLabel(ending.assignment_type)}</dd>
               </div>
             </dl>
-            <p className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+            <p className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning-subtle px-3 py-2 text-xs leading-5 text-warning">
               <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               The API records the end time and actor. Access revocation is enforced by the API.
             </p>

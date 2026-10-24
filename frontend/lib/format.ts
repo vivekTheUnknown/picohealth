@@ -236,7 +236,9 @@ export function truncate(value: string, max = 120): string {
 }
 
 export function pluralize(count: number, singular: string, plural?: string): string {
-  return count === 1 ? singular : (plural ?? `${singular}s`);
+  // Includes the count: every call site renders this directly into a label, so
+  // omitting it produced labels like "patients in view" with no number.
+  return `${count} ${count === 1 ? singular : (plural ?? `${singular}s`)}`;
 }
 
 export function formatEventDuration(
@@ -248,4 +250,13 @@ export function formatEventDuration(
   if (duration !== "—") return duration;
   if (status === "resolved" || status === "false_positive") return "Not reported";
   return "Ongoing";
+}
+
+
+/**
+ * Abbreviates a long opaque identifier for table display. The full value stays
+ * available in a `title`, so nothing is lost — only the width it consumes.
+ */
+export function shortId(value: string, head = 8): string {
+  return value.length > head ? `${value.slice(0, head)}…` : value;
 }

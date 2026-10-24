@@ -128,7 +128,7 @@ function EventDetailShell({
         <SeverityBadge severity={event.severity} />
         <StatusBadge status={event.status} />
         {event.source ? (
-          <span className="rounded border border-line bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
+          <span className="rounded border border-line bg-surface-raised px-1.5 py-0.5 text-2xs font-medium text-ink-subtle">
             Source: {event.source}
           </span>
         ) : null}
@@ -146,12 +146,12 @@ function EventDetailShell({
 
       <dl className="grid gap-x-4 gap-y-3 text-xs sm:grid-cols-2">
         <div>
-          <dt className="font-medium uppercase tracking-wide text-ink-subtle">Patient</dt>
+          <dt className="font-medium text-ink-subtle">Patient</dt>
           <dd className="mt-0.5 text-ink">
             {event.patient_id ? (
               <Link
                 href={`/patients/${encodeURIComponent(event.patient_id)}`}
-                className="font-medium underline-offset-2 hover:text-accent-800 hover:underline"
+                className="font-medium underline-offset-2 hover:text-accent hover:underline"
               >
                 {event.patient_name ?? "Open patient workspace"}
               </Link>
@@ -159,40 +159,40 @@ function EventDetailShell({
               (event.patient_name ?? "Not reported")
             )}
             {event.patient_code ? (
-              <span className="ml-1.5 font-mono text-[11px] text-ink-subtle">{event.patient_code}</span>
+              <span className="ml-1.5 font-mono text-2xs text-ink-subtle">{event.patient_code}</span>
             ) : null}
           </dd>
         </div>
         <div>
-          <dt className="font-medium uppercase tracking-wide text-ink-subtle">Started</dt>
+          <dt className="font-medium text-ink-subtle">Started</dt>
           <dd className="mt-0.5 text-ink">{formatDateTime(event.start_at, timeZone)}</dd>
         </div>
         <div>
-          <dt className="font-medium uppercase tracking-wide text-ink-subtle">Ended</dt>
+          <dt className="font-medium text-ink-subtle">Ended</dt>
           <dd className="mt-0.5 text-ink">
             {event.end_at ? formatDateTime(event.end_at, timeZone) : "Not ended"}
           </dd>
         </div>
         <div>
-          <dt className="font-medium uppercase tracking-wide text-ink-subtle">Duration</dt>
+          <dt className="font-medium text-ink-subtle">Duration</dt>
           <dd className="mt-0.5 text-ink">
             {formatEventDuration(event.start_at, event.end_at, event.status)}
           </dd>
         </div>
         <div>
-          <dt className="font-medium uppercase tracking-wide text-ink-subtle">Rule / algorithm</dt>
-          <dd className="mt-0.5 font-mono text-[11px] text-ink">
+          <dt className="font-medium text-ink-subtle">Rule / algorithm</dt>
+          <dd className="mt-0.5 font-mono text-2xs text-ink">
             {event.rule_version ?? "Not reported"}
           </dd>
         </div>
         <div>
-          <dt className="font-medium uppercase tracking-wide text-ink-subtle">Created</dt>
+          <dt className="font-medium text-ink-subtle">Created</dt>
           <dd className="mt-0.5 text-ink">{formatDateTime(event.created_at, timeZone)}</dd>
         </div>
       </dl>
 
-      <div className="rounded-lg border border-line bg-slate-50/60 p-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+      <div className="rounded-lg border border-line bg-surface-raised/60 p-3">
+        <h4 className="text-xs font-semibold text-ink-subtle">
           Trigger evidence
         </h4>
         {evidenceEntries.length === 0 ? (
@@ -204,10 +204,10 @@ function EventDetailShell({
           <dl className="mt-2 space-y-1.5">
             {evidenceEntries.map(([key, value]) => (
               <div key={key} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                <dt className="shrink-0 text-[11px] font-medium text-ink-muted">
+                <dt className="shrink-0 text-2xs font-medium text-ink-muted">
                   {key.replace(/[_-]+/g, " ")}
                 </dt>
-                <dd className="break-words font-mono text-[11px] text-ink">
+                <dd className="break-words font-mono text-2xs text-ink">
                   {formatEvidenceValue(value)}
                 </dd>
               </div>
@@ -217,7 +217,7 @@ function EventDetailShell({
       </div>
 
       <div>
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+        <h4 className="text-xs font-semibold text-ink-subtle">
           State history
         </h4>
         {transitions.length === 0 ? (
@@ -235,15 +235,15 @@ function EventDetailShell({
                   {transition.prior_status ? (
                     <>
                       <StatusBadge status={clinicalStatus(transition.prior_status)} size="sm" />
-                      <ChevronRight className="h-3 w-3 text-line-strong" aria-hidden="true" />
+                      <ChevronRight className="h-3 w-3 text-ink-subtle" aria-hidden="true" />
                     </>
                   ) : null}
                   <StatusBadge status={clinicalStatus(transition.new_status)} size="sm" />
-                  <span className="ml-auto text-[10px] text-ink-subtle">
+                  <span className="ml-auto text-2xs text-ink-subtle">
                     {formatDateTime(transition.timestamp, timeZone)}
                   </span>
                 </div>
-                <p className="mt-1 text-[11px] text-ink-muted">
+                <p className="mt-1 text-2xs text-ink-muted">
                   {transition.actor_name ?? "Actor not reported"}
                   {transition.note ? ` · ${transition.note}` : ""}
                 </p>
@@ -253,7 +253,7 @@ function EventDetailShell({
         )}
       </div>
 
-      <p className="text-[11px] leading-5 text-ink-subtle">
+      <p className="text-2xs leading-5 text-ink-subtle">
         Device connection, motion context, and waveform evidence are not exposed by this event
         payload. Their absence is not evidence that the signal was reliable.
       </p>
@@ -409,14 +409,16 @@ function AlertsContent() {
           <button
             type="button"
             onClick={() => selectEvent(event.id)}
-            className="mt-1 block text-left text-xs font-medium text-ink underline-offset-2 hover:text-accent-800 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
+            className="mt-1 flex items-baseline gap-2 whitespace-nowrap text-left"
             aria-current={event.id === selectedId ? "true" : undefined}
           >
-            {humanizeEventType(event.event_type)}
+            <span className="text-sm font-medium text-ink underline-offset-2 hover:text-accent hover:underline">
+              {humanizeEventType(event.event_type)}
+            </span>
+            {event.rule_version ? (
+              <span className="mono-id">{event.rule_version}</span>
+            ) : null}
           </button>
-          {event.rule_version ? (
-            <p className="mt-0.5 font-mono text-[10px] text-ink-subtle">Rule {event.rule_version}</p>
-          ) : null}
         </div>
       ),
     },
@@ -427,7 +429,7 @@ function AlertsContent() {
         <div className="min-w-[9rem]">
           <p className="text-xs font-medium text-ink">{event.patient_name ?? "Not reported"}</p>
           {event.patient_code ? (
-            <p className="font-mono text-[10px] text-ink-subtle">{event.patient_code}</p>
+            <p className="font-mono text-2xs text-ink-subtle">{event.patient_code}</p>
           ) : null}
         </div>
       ),
@@ -436,7 +438,7 @@ function AlertsContent() {
       key: "start",
       header: "Started",
       render: (event) => (
-        <span className="whitespace-nowrap text-[11px] text-ink-muted">
+        <span className="whitespace-nowrap text-2xs text-ink-muted">
           {formatDateTime(event.start_at, me?.timezone)}
         </span>
       ),
@@ -445,7 +447,7 @@ function AlertsContent() {
       key: "duration",
       header: "Duration",
       render: (event) => (
-        <span className="whitespace-nowrap text-[11px] text-ink-muted">
+        <span className="whitespace-nowrap text-2xs text-ink-muted">
           {formatEventDuration(event.start_at, event.end_at, event.status)}
         </span>
       ),
@@ -548,12 +550,12 @@ function AlertsContent() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-5">
           <SectionCard bodyClassName="p-0">
-            <div className="flex flex-col gap-3 border-b border-line bg-slate-50/50 p-4">
+            <div className="flex flex-col gap-3 border-b border-line bg-surface-raised/50 p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
                 <div className="min-w-0 flex-1">
                   <label
                     htmlFor="alerts-search"
-                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+                    className="mb-1 block text-2xs font-medium text-ink-subtle"
                   >
                     Search
                   </label>
@@ -574,7 +576,7 @@ function AlertsContent() {
                 <div className="w-full sm:w-36">
                   <label
                     htmlFor="alerts-status"
-                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+                    className="mb-1 block text-2xs font-medium text-ink-subtle"
                   >
                     Status
                   </label>
@@ -591,7 +593,7 @@ function AlertsContent() {
                 <div className="w-full sm:w-36">
                   <label
                     htmlFor="alerts-severity"
-                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+                    className="mb-1 block text-2xs font-medium text-ink-subtle"
                   >
                     Severity
                   </label>
@@ -613,7 +615,7 @@ function AlertsContent() {
                 <div className="w-full sm:w-44">
                   <label
                     htmlFor="alerts-type"
-                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+                    className="mb-1 block text-2xs font-medium text-ink-subtle"
                   >
                     Event type
                   </label>
@@ -633,7 +635,7 @@ function AlertsContent() {
                 <div className="w-full sm:w-36">
                   <label
                     htmlFor="alerts-range"
-                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+                    className="mb-1 block text-2xs font-medium text-ink-subtle"
                   >
                     Time range
                   </label>
@@ -649,7 +651,7 @@ function AlertsContent() {
                   </Select>
                 </div>
                 <div className="flex items-center gap-2 sm:ml-auto">
-                  <span className="inline-flex items-center gap-1 text-[11px] text-ink-subtle">
+                  <span className="inline-flex items-center gap-1 text-2xs text-ink-subtle">
                     <Filter className="h-3 w-3" aria-hidden="true" />
                     {activeFilterCount > 0
                       ? `${pluralize(activeFilterCount, "filter")} active`
@@ -692,7 +694,7 @@ function AlertsContent() {
             )}
           </SectionCard>
 
-          <p className="text-[11px] leading-5 text-ink-subtle">
+          <p className="text-2xs leading-5 text-ink-subtle">
             The list shows the fields the API reports. Severity and status are always shown with
             text, not colour alone. Events are possible signals, not diagnoses.
           </p>
@@ -728,10 +730,10 @@ function AlertsContent() {
             ) : detail.loading && !detail.data && !selectedFromList ? (
               <div className="space-y-3" role="status" aria-live="polite">
                 <span className="sr-only">Loading event detail</span>
-                <div className="h-3 w-2/3 animate-pulse rounded bg-slate-200/80" />
-                <div className="h-3 w-full animate-pulse rounded bg-slate-200/80" />
-                <div className="h-3 w-4/5 animate-pulse rounded bg-slate-200/80" />
-                <div className="h-24 w-full animate-pulse rounded bg-slate-200/80" />
+                <div className="h-3 w-2/3 animate-pulse rounded bg-line/80" />
+                <div className="h-3 w-full animate-pulse rounded bg-line/80" />
+                <div className="h-3 w-4/5 animate-pulse rounded bg-line/80" />
+                <div className="h-24 w-full animate-pulse rounded bg-line/80" />
               </div>
             ) : !selected ? (
               <EmptyState
@@ -764,7 +766,7 @@ function AlertsContent() {
                   {selectedActive ? (
                     <div className="space-y-3 border-t border-line pt-4">
                       {!canAcknowledge && !canResolve ? (
-                        <p className="rounded-md border border-line bg-slate-50 px-3 py-2 text-xs leading-5 text-ink-muted">
+                        <p className="rounded-md border border-line bg-surface-raised px-3 py-2 text-xs leading-5 text-ink-muted">
                           Your account can view this event but does not have permission to
                           acknowledge or resolve it. The API enforces this independently.
                         </p>
@@ -773,7 +775,7 @@ function AlertsContent() {
                           <div>
                             <label
                               htmlFor="event-action-note"
-                              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+                              className="mb-1 block text-2xs font-medium text-ink-subtle"
                             >
                               Action note (optional)
                             </label>
@@ -786,7 +788,7 @@ function AlertsContent() {
                               placeholder="Reason for acknowledging or resolving this event…"
                               aria-describedby="event-action-note-hint"
                             />
-                            <p id="event-action-note-hint" className="mt-1 text-[11px] text-ink-subtle">
+                            <p id="event-action-note-hint" className="mt-1 text-2xs text-ink-subtle">
                               The note is stored with the event's state history. Actions do not
                               delete the original event.
                             </p>
@@ -832,7 +834,7 @@ function AlertsContent() {
                       )}
                     </div>
                   ) : (
-                    <p className="rounded-md border border-line bg-slate-50 px-3 py-2 text-xs leading-5 text-ink-muted">
+                    <p className="rounded-md border border-line bg-surface-raised px-3 py-2 text-xs leading-5 text-ink-muted">
                       This event is closed. Its record and state history remain available for
                       review; no further state action is offered.
                     </p>
@@ -842,7 +844,7 @@ function AlertsContent() {
             )}
           </SectionCard>
 
-          <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
+          <div className="rounded-lg border border-line bg-surface p-4">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-ink-subtle" aria-hidden="true" />
               <h2 className="text-sm font-semibold text-ink">Time and data context</h2>
@@ -901,10 +903,10 @@ function AlertsContent() {
             </dl>
             {note.trim() ? (
               <div>
-                <p className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+                <p className="text-2xs font-medium text-ink-subtle">
                   Note to record
                 </p>
-                <p className="mt-1 whitespace-pre-wrap rounded-md border border-line bg-slate-50 px-2.5 py-2 text-xs leading-5 text-ink">
+                <p className="mt-1 whitespace-pre-wrap rounded-md border border-line bg-surface-raised px-2.5 py-2 text-xs leading-5 text-ink">
                   {note.trim()}
                 </p>
               </div>
@@ -924,10 +926,10 @@ function SourceBadge({ source }: { source: "events" | "overview" }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-2xs font-medium",
         source === "events"
-          ? "border-line-strong bg-slate-50 text-ink-subtle"
-          : "border-amber-200 bg-amber-50 text-amber-900",
+          ? "border-line-strong bg-surface-raised text-ink-subtle"
+          : "border-warning/30 bg-warning-subtle text-warning",
       )}
     >
       {source === "events" ? "Event feed" : "Overview summary"}

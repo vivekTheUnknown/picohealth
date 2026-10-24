@@ -67,3 +67,46 @@ def test_overview_handles_patient_without_a_device(client, db):
     assert body["patients_monitored"] == 2
     # A patient with no device has unknown freshness and counts as stale.
     assert body["patients_with_stale_data"] >= 1
+
+
+def test_patient_list_includes_latest_event(client, db):
+    """The overview row previously said "No recent event" beside an active-event
+    count because the patient list never carried the latest event."""
+    from datetime import UTC, datetime, timedelta
+
+    from tests.conftest import make_event
+
+    doctor = make_user(db)
+    patient = make_patient(db)
+    quiet = make_patient(db)
+    make_assignment(db, doctor, patient)
+    make_assignment(db, doctor, quiet)
+
+    now = datetime.now(UTC)
+    make_event(
+        db,
+        patient,
+        event_type="older_resolved",
+        status="resolved",
+        start_at=now - timedelta(hours=6),
+    )
+    newest = make_event(
+        db,
+        patient,
+        event_type="newer_active",
+        status="new",
+        start_at=now - timedelta(minutes=5),
+    )
+
+    login(client, doctor)
+    rows = client.get("/api/v1/patients").json()["items"]
+    by_id = {row["id"]: row for row in rows}
+
+    row = by_id[str(patient.id)]
+    assert row["active_event_count"] == 1
+    assert row["latest_event"]["id"] == str(newest.id)
+    assert row["latest_event"]["event_type"] == "newer_active"
+    assert row["latest_event"]["status"] == "new"
+
+    # A patient with no events reports null rather than an invented summary.
+    assert by_id[str(quiet.id)]["latest_event"] is None

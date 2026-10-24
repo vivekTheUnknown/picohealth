@@ -12,6 +12,10 @@ export interface EmptyStateProps {
   compact?: boolean;
 }
 
+/**
+ * Concise empty state (style.md §12). No illustration, no oversized circle —
+ * an empty region should read as a quiet absence of data, not a hero moment.
+ */
 export function EmptyState({
   title,
   description,
@@ -23,22 +27,19 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-lg text-center",
-        compact ? "px-4 py-8" : "px-6 py-12",
+        "flex flex-col items-center justify-center text-center",
+        compact ? "px-4 py-6" : "px-4 py-8",
         className,
       )}
     >
-      <span
-        className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-ink-subtle"
-        aria-hidden="true"
-      >
-        <Icon className="h-5 w-5" />
-      </span>
-      <h3 className="mt-3 text-sm font-semibold text-ink">{title}</h3>
+      <Icon className="h-5 w-5 text-ink-subtle" aria-hidden="true" />
+      <h3 className="mt-2 text-sm font-medium text-ink">{title}</h3>
       {description ? (
-        <div className="mt-1 max-w-md text-sm leading-6 text-ink-muted">{description}</div>
+        <div className="mt-1 max-w-md text-xs leading-4 text-ink-subtle">{description}</div>
       ) : null}
-      {action ? <div className="mt-4 flex flex-wrap items-center justify-center gap-2">{action}</div> : null}
+      {action ? (
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">{action}</div>
+      ) : null}
     </div>
   );
 }

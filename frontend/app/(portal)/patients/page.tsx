@@ -32,10 +32,10 @@ function PatientStatusPill({ status }: { status: string }) {
       <span
         className={
           status === "active"
-            ? "h-1.5 w-1.5 rounded-full bg-emerald-500"
+            ? "h-1.5 w-1.5 rounded-full bg-success"
             : status === "inactive"
-              ? "h-1.5 w-1.5 rounded-full bg-slate-400"
-              : "h-1.5 w-1.5 rounded-full bg-amber-500"
+              ? "h-1.5 w-1.5 rounded-full bg-ink-subtle"
+              : "h-1.5 w-1.5 rounded-full bg-warning"
         }
         aria-hidden="true"
       />
@@ -79,11 +79,11 @@ export default function PatientsDirectoryPage() {
         <div className="min-w-0">
           <Link
             href={`/patients/${patient.id}`}
-            className="font-medium text-ink underline-offset-2 hover:text-accent-800 hover:underline"
+            className="font-medium text-ink underline-offset-2 hover:text-accent hover:underline"
           >
             {patient.display_name}
           </Link>
-          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-ink-subtle">
+          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-2xs text-ink-subtle">
             {patient.patient_code ? (
               <span className="font-mono">{patient.patient_code}</span>
             ) : (
@@ -120,6 +120,7 @@ export default function PatientsDirectoryPage() {
           timestamp={patient.last_received_at}
           timeZone={me?.timezone}
           label="Received"
+          compact
         />
       ),
     },
@@ -131,7 +132,7 @@ export default function PatientsDirectoryPage() {
           <div className="space-y-1">
             <DeviceStatusBadge status={patient.device_status} />
             {patient.battery_level !== null ? (
-              <p className="text-[11px] text-ink-subtle">
+              <p className="text-2xs text-ink-subtle">
                 Battery {formatNumber(patient.battery_level, 0)}%
               </p>
             ) : null}
@@ -222,11 +223,11 @@ export default function PatientsDirectoryPage() {
             </FormBanner>
           </div>
         ) : null}
-        <div className="flex flex-col gap-3 border-b border-line bg-slate-50/50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="flex flex-col gap-3 border-b border-line bg-surface-raised/50 p-4 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="min-w-0 flex-1">
             <label
               htmlFor="directory-search"
-              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+              className="mb-1 block text-2xs font-medium text-ink-subtle"
             >
               Search
             </label>
@@ -247,7 +248,7 @@ export default function PatientsDirectoryPage() {
           <div className="w-full sm:w-40">
             <label
               htmlFor="directory-status"
-              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+              className="mb-1 block text-2xs font-medium text-ink-subtle"
             >
               Patient status
             </label>
@@ -260,7 +261,7 @@ export default function PatientsDirectoryPage() {
           <div className="w-full sm:w-40">
             <label
               htmlFor="directory-freshness"
-              className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-subtle"
+              className="mb-1 block text-2xs font-medium text-ink-subtle"
             >
               Data freshness
             </label>
@@ -312,7 +313,7 @@ export default function PatientsDirectoryPage() {
         )}
       </SectionCard>
 
-      <p className="text-[11px] leading-5 text-ink-subtle">
+      <p className="text-2xs leading-5 text-ink-subtle">
         The API returns only patients your role and active assignments permit. A patient missing
         from this list is not necessarily an error; it may mean you are not assigned.
       </p>

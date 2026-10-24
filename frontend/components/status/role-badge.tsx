@@ -9,10 +9,10 @@ export function RoleBadge({ role, className }: { role: Role; className?: string 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium",
+        "inline-flex items-center gap-1 h-5 rounded-sm border px-1.5 text-2xs font-medium",
         isAdmin
-          ? "border-indigo-200 bg-indigo-50 text-indigo-800"
-          : "border-accent-200 bg-accent-50 text-accent-800",
+          ? "border-info/30 bg-info-subtle text-info"
+          : "border-accent/30 bg-accent-subtle text-accent",
         className,
       )}
     >

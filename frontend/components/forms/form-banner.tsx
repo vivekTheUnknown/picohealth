@@ -11,23 +11,23 @@ const TONES: Record<
   { container: string; icon: string; Icon: typeof AlertCircle }
 > = {
   error: {
-    container: "border-red-200 bg-red-50 text-red-900",
-    icon: "text-red-700",
+    container: "border-danger/30 bg-danger-subtle text-danger",
+    icon: "text-danger",
     Icon: AlertCircle,
   },
   success: {
-    container: "border-emerald-200 bg-emerald-50 text-emerald-900",
-    icon: "text-emerald-700",
+    container: "border-success/30 bg-success-subtle text-success",
+    icon: "text-success",
     Icon: CheckCircle2,
   },
   info: {
-    container: "border-ocean-200 bg-ocean-50 text-ocean-900",
-    icon: "text-ocean-700",
+    container: "border-info/30 bg-info-subtle text-info",
+    icon: "text-info",
     Icon: Info,
   },
   warning: {
-    container: "border-amber-200 bg-amber-50 text-amber-900",
-    icon: "text-amber-700",
+    container: "border-warning/30 bg-warning-subtle text-warning",
+    icon: "text-warning",
     Icon: AlertTriangle,
   },
 };
@@ -46,7 +46,7 @@ export function FormBanner({ tone, title, children, onDismiss, className }: Form
     <div
       role={tone === "error" ? "alert" : "status"}
       className={cn(
-        "flex items-start gap-2.5 rounded-lg border px-3.5 py-3 text-sm",
+        "flex items-start gap-2.5 rounded-md border px-3 py-2.5 text-sm",
         container,
         className,
       )}
@@ -60,7 +60,7 @@ export function FormBanner({ tone, title, children, onDismiss, className }: Form
         <button
           type="button"
           onClick={onDismiss}
-          className="-my-1 -mr-1 rounded p-1 hover:bg-black/5"
+          className="-my-0.5 -mr-0.5 rounded-sm p-1 text-current opacity-70 transition-opacity duration-fast hover:opacity-100"
           aria-label="Dismiss message"
         >
           <X className="h-4 w-4" aria-hidden="true" />

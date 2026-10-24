@@ -19,37 +19,37 @@ const DEVICE: Record<
   active: {
     label: "Active",
     icon: Activity,
-    classes: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    classes: "border-success/30 bg-success-subtle text-success",
   },
   registered: {
     label: "Registered",
     icon: Circle,
-    classes: "border-line-strong bg-slate-100 text-slate-700",
+    classes: "border-line bg-surface-active text-ink-muted",
   },
   faulty: {
     label: "Faulty",
     icon: AlertTriangle,
-    classes: "border-red-200 bg-red-50 text-red-800",
+    classes: "border-danger/30 bg-danger-subtle text-danger",
   },
   lost: {
     label: "Lost",
     icon: AlertOctagon,
-    classes: "border-red-200 bg-red-50 text-red-800",
+    classes: "border-danger/30 bg-danger-subtle text-danger",
   },
   retired: {
     label: "Retired",
     icon: Archive,
-    classes: "border-line-strong bg-slate-100 text-slate-700",
+    classes: "border-line bg-surface-active text-ink-muted",
   },
   under_test: {
     label: "Under test",
     icon: FlaskConical,
-    classes: "border-amber-200 bg-amber-50 text-amber-900",
+    classes: "border-warning/30 bg-warning-subtle text-warning",
   },
   unknown: {
     label: "Unknown status",
     icon: CircleHelp,
-    classes: "border-line-strong bg-slate-100 text-slate-700",
+    classes: "border-line bg-surface-active text-ink-muted",
   },
 };
 
@@ -65,7 +65,7 @@ export function DeviceStatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium",
+        "inline-flex items-center gap-1 h-5 rounded-sm border px-1.5 text-2xs font-medium",
         config.classes,
         className,
       )}
