@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.core.config import settings
 from app.core.rate_limit import limiter
@@ -59,7 +59,7 @@ def test_successful_login_resets_the_counter(client, db):
 
 
 def test_freshness_label_never_implies_fresh_for_old_data():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     assert freshness_label(now) == "fresh"
     assert freshness_label(now - timedelta(hours=2)) == "stale"
     assert freshness_label(None) == "unknown"

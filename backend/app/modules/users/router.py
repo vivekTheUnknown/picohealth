@@ -254,6 +254,8 @@ def set_permission_grants(
     Session revocation happens because effective permissions changed; a caller
     must re-authenticate against the new set.
     """
+    from sqlalchemy import select
+
     from app.models.base import utcnow
     from app.models.identity import UserPermissionGrant
 

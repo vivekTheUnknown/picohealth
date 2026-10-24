@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import enum
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, String, Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -13,7 +13,7 @@ from sqlalchemy.types import TypeDecorator
 
 def utcnow() -> datetime:
     """Timezone-aware UTC timestamp. Storage is always UTC."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class StrEnumType(TypeDecorator):
@@ -31,14 +31,14 @@ class StrEnumType(TypeDecorator):
         self.enum_cls = enum_cls
         super().__init__(length=length)
 
-    def process_bind_param(self, value, dialect):  # noqa: ANN001
+    def process_bind_param(self, value, dialect):
         if value is None:
             return None
         if isinstance(value, enum.Enum):
             return value.value
         return str(value)
 
-    def process_result_value(self, value, dialect):  # noqa: ANN001
+    def process_result_value(self, value, dialect):
         if value is None:
             return None
         try:
@@ -60,19 +60,19 @@ class UTCDateTime(TypeDecorator):
     impl = DateTime
     cache_ok = True
 
-    def process_bind_param(self, value, dialect):  # noqa: ANN001
+    def process_bind_param(self, value, dialect):
         if value is None:
             return None
         if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+            value = value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
 
-    def process_result_value(self, value, dialect):  # noqa: ANN001
+    def process_result_value(self, value, dialect):
         if value is None:
             return None
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
 
 
 class Base(DeclarativeBase):

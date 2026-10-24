@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 import random
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -91,7 +91,7 @@ def main() -> int:
                 patient = Patient(
                     patient_code=code,
                     display_name=name,
-                    date_of_birth=datetime.now(timezone.utc).date()
+                    date_of_birth=datetime.now(UTC).date()
                     - timedelta(days=age * 365),
                     sex_at_birth=sex,
                     status=PatientStatus.ACTIVE,
@@ -117,7 +117,7 @@ def main() -> int:
                         patient_id=patient.id,
                         assignment_type=AssignmentType.PRIMARY,
                         status=AssignmentStatus.ACTIVE,
-                        starts_at=datetime.now(timezone.utc) - timedelta(days=10),
+                        starts_at=datetime.now(UTC) - timedelta(days=10),
                         created_by=admin.id,
                     )
                 )
@@ -131,7 +131,7 @@ def main() -> int:
                     hardware_revision="rev-c",
                     firmware_version="1.2.0",
                     status=DeviceStatus.ACTIVE,
-                    last_seen_at=datetime.now(timezone.utc)
+                    last_seen_at=datetime.now(UTC)
                     - timedelta(minutes=idx * 7),
                     battery_level=90 - idx * 5,
                     registered_by=admin.id,
@@ -142,13 +142,13 @@ def main() -> int:
                     PatientDevice(
                         patient_id=patient.id,
                         device_id=device.id,
-                        linked_at=datetime.now(timezone.utc) - timedelta(days=10),
+                        linked_at=datetime.now(UTC) - timedelta(days=10),
                         linked_by=admin.id,
                     )
                 )
 
             # 24 hours of hourly summaries per patient.
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             has_measurements = db.scalar(
                 select(MeasurementSummary).where(MeasurementSummary.patient_id == patient.id)
             )

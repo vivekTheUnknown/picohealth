@@ -7,7 +7,7 @@ revoked assignment, a suspended user, and cross-patient resource access.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -64,7 +64,7 @@ def test_ended_assignment_revokes_access(client, db):
         doctor,
         patient,
         status=AssignmentStatus.ENDED,
-        ends_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        ends_at=datetime.now(UTC) - timedelta(hours=1),
     )
     login(client, doctor)
     assert client.get(f"/api/v1/patients/{patient.id}/overview").status_code == 404
@@ -74,7 +74,7 @@ def test_future_assignment_does_not_grant_access_yet(client, db):
     doctor = make_user(db)
     patient = make_patient(db)
     make_assignment(
-        db, doctor, patient, starts_at=datetime.now(timezone.utc) + timedelta(days=1)
+        db, doctor, patient, starts_at=datetime.now(UTC) + timedelta(days=1)
     )
     login(client, doctor)
     assert client.get(f"/api/v1/patients/{patient.id}/overview").status_code == 404
@@ -89,7 +89,7 @@ def test_expired_assignment_row_does_not_grant_access(client, db):
         doctor,
         patient,
         status=AssignmentStatus.ACTIVE,
-        ends_at=datetime.now(timezone.utc) - timedelta(minutes=5),
+        ends_at=datetime.now(UTC) - timedelta(minutes=5),
     )
     login(client, doctor)
     assert client.get(f"/api/v1/patients/{patient.id}/overview").status_code == 404

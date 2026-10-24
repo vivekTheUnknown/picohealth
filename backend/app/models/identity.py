@@ -45,13 +45,13 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     timezone: Mapped[str] = mapped_column(String(64), default="UTC", nullable=False)
     last_login_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
 
-    roles: Mapped[list["UserRole"]] = relationship(
+    roles: Mapped[list[UserRole]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         lazy="selectin",
         foreign_keys="UserRole.user_id",
     )
-    doctor_profile: Mapped["DoctorProfile | None"] = relationship(
+    doctor_profile: Mapped[DoctorProfile | None] = relationship(
         back_populates="user",
         uselist=False,
         cascade="all, delete-orphan",

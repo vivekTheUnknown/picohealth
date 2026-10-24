@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
@@ -22,7 +22,7 @@ TERMINAL = {EventStatus.RESOLVED, EventStatus.FALSE_POSITIVE}
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def parse_evidence(raw: str | None) -> dict | None:

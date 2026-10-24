@@ -7,7 +7,7 @@ clinical support permission.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends
 
@@ -33,7 +33,7 @@ ACTIVE_EVENT_STATES = (EventStatus.NEW, EventStatus.ACKNOWLEDGED, EventStatus.UN
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @router.get("/doctor/overview", dependencies=[Depends(require_permissions(Permission.PATIENTS_READ_ASSIGNED))])
@@ -73,14 +73,18 @@ def doctor_overview(ctx: AuthDep, db: DbDep) -> dict:
         if last is None:
             stale += 1
         else:
-            aware = last if last.tzinfo else last.replace(tzinfo=timezone.utc)
+            aware = last if last.tzinfo else last.replace(tzinfo=UTC)
             if now - aware > STALE_AFTER:
                 stale += 1
 
-    # Sort so the most urgent patients lead, per the design's triage intent.
-    severity_rank = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
+    # Triage order: most active events first, then the least recently synced
+    # patients (stale data needs attention before fresh data).
+    _never = datetime.min.replace(tzinfo=UTC)
     items.sort(
-        key=lambda i: (i["active_event_count"] == 0, i["last_sync_at"] or 0),
+        key=lambda i: (
+            -(i["active_event_count"] or 0),
+            i["last_sync_at"] or _never,
+        )
     )
 
     recent = db.scalars(

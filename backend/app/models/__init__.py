@@ -25,9 +25,9 @@ from app.models.patients import (
 )
 
 __all__ = [
-    "Base",
     "AlertTransition",
     "AuditEvent",
+    "Base",
     "ClinicalNote",
     "Device",
     "DoctorPatientAssignment",

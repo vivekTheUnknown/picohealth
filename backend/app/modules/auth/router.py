@@ -5,7 +5,7 @@ Thin by design: authenticate, delegate to the service, shape the response.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, Response, status
 
 from app.core.authz import AuthContext
 from app.core.cookies import clear_session_cookies, set_session_cookies

@@ -10,7 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 
 from app.core import audit
-from app.core.authz import AuthContext, require_patient_access
+from app.core.authz import require_patient_access
 from app.core.deps import AuthDep, DbDep, MetaDep, parse_uuid, require_permissions
 from app.core.enums import AssignmentStatus, Permission, Role
 from app.core.errors import not_found

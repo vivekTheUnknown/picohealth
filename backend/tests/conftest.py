@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 # Must be set before the application modules import settings.
 os.environ.setdefault("ENVIRONMENT", "test")
@@ -151,7 +151,7 @@ def make_assignment(
         patient_id=patient.id,
         assignment_type=AssignmentType.PRIMARY,
         status=status,
-        starts_at=starts_at or datetime.now(timezone.utc) - timedelta(days=1),
+        starts_at=starts_at or datetime.now(UTC) - timedelta(days=1),
         ends_at=ends_at,
     )
     db.add(assignment)
@@ -163,7 +163,7 @@ def make_device(db, patient: Patient | None = None) -> Device:
     device = Device(
         hardware_identifier=f"DEV-{uuid.uuid4().hex[:8]}",
         status=DeviceStatus.ACTIVE,
-        last_seen_at=datetime.now(timezone.utc),
+        last_seen_at=datetime.now(UTC),
     )
     db.add(device)
     db.flush()
@@ -178,7 +178,7 @@ def make_event(db, patient: Patient, **kwargs) -> Event:
         patient_id=patient.id,
         event_type="tachycardia_sustained",
         severity=Severity.HIGH,
-        start_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        start_at=datetime.now(UTC) - timedelta(hours=1),
         status=EventStatus.NEW,
         source="rule",
         rule_version="rules-1.0.0",

@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 from app.core.enums import Role, UserStatus
-from app.models.identity import Session as AuthSession
 from app.models.identity import User
 from tests.conftest import (
-    PASSWORD,
     login,
     make_device,
     make_patient,

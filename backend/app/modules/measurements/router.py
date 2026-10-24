@@ -7,7 +7,7 @@ interpolates or fabricates samples to fill a chart.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Query
@@ -55,7 +55,7 @@ def list_measurements(
 
     patient = require_patient_access(db, ctx, parse_uuid(patient_id))
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     end = to_ts or now
     start = from_ts or (end - DEFAULT_WINDOW)
 

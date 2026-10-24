@@ -41,10 +41,10 @@ class Patient(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
     )
 
-    assignments: Mapped[list["DoctorPatientAssignment"]] = relationship(
+    assignments: Mapped[list[DoctorPatientAssignment]] = relationship(
         back_populates="patient", cascade="all, delete-orphan"
     )
-    device_links: Mapped[list["PatientDevice"]] = relationship(
+    device_links: Mapped[list[PatientDevice]] = relationship(
         back_populates="patient", cascade="all, delete-orphan"
     )
 

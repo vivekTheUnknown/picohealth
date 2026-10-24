@@ -8,7 +8,7 @@ response, and impossible with stateless tokens.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session as DbSession
@@ -20,7 +20,7 @@ from app.models.identity import User
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def create_session(
@@ -121,4 +121,4 @@ def purge_expired(db: DbSession) -> int:
 
 def _as_utc(value: datetime) -> datetime:
     """SQLite returns naive datetimes; normalise before comparison."""
-    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)

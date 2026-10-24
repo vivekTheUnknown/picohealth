@@ -92,7 +92,7 @@ class Event(UUIDPrimaryKeyMixin, Base):
     evidence: Mapped[str | None] = mapped_column(Text)  # JSON: thresholds, windows
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
-    transitions: Mapped[list["AlertTransition"]] = relationship(
+    transitions: Mapped[list[AlertTransition]] = relationship(
         back_populates="event", cascade="all, delete-orphan"
     )
 
