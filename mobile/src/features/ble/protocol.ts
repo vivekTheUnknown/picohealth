@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import {
   MAX_FRAGMENT_PAYLOAD_BYTES,
   NOTIFICATION_HEADER_BYTES,
@@ -28,7 +30,8 @@ export type ProtocolErrorCode =
   | "fragment_timeout"
   | "duplicate_conflict"
   | "too_large"
-  | "superseded";
+  | "superseded"
+  | "bad_json";
 
 export class ProtocolError extends Error {
   constructor(
@@ -218,4 +221,98 @@ export function readTestMessage(bytes: Uint8Array): string | null {
   const printable = Array.from(bytes).every((byte) => byte >= 0x20 && byte <= 0x7e);
   // Hermes does not guarantee TextDecoder; these messages are ASCII.
   return printable ? String.fromCharCode(...bytes) : null;
+}
+
+
+/**
+ * Protocol v2: the firmware may send a JSON measurement record over the same
+ * PicoHealth characteristic. It is still fragmented and reassembled, because a
+ * record is larger than one notification at the default MTU.
+ *
+ * Status semantics are identical to the binary frame: a value is only a
+ * measurement when its sensor status is `ok`. Reported values that contradict
+ * that rule are discarded, never displayed.
+ */
+const sensorStatusSchema = z.enum(["ok", "unavailable", "error", "unvalidated"]);
+
+const jsonRecordSchema = z
+  .object({
+    v: z.literal(2),
+    seq: z.number().int().optional(),
+    up: z.number().optional(),
+    o: z.object({
+      s: sensorStatusSchema,
+      r: z.number().nullable().optional(),
+      i: z.number().nullable().optional(),
+      n: z.number().int().nonnegative().optional(),
+    }),
+    t: z.object({
+      s: sensorStatusSchema,
+      c: z.number().nullable().optional(),
+    }),
+    i: z.object({
+      s: sensorStatusSchema,
+      a: z.array(z.number()).length(3).nullable().optional(),
+      g: z.array(z.number()).length(3).nullable().optional(),
+    }),
+  })
+  .passthrough();
+
+export function looksLikeJson(bytes: Uint8Array): boolean {
+  const first = Array.from(bytes).find(
+    (byte) => byte !== 0x20 && byte !== 0x0a && byte !== 0x0d && byte !== 0x09,
+  );
+  return first === 0x7b; // "{"
+}
+
+function consistentStatus(
+  status: z.infer<typeof sensorStatusSchema>,
+  hasValues: boolean,
+): SensorStatus {
+  if (status === "ok" && !hasValues) return "error";
+  return status;
+}
+
+export function decodeJsonRecord(input: Uint8Array): DecodedFrame {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(String.fromCharCode(...input));
+  } catch {
+    throw new ProtocolError("bad_json", "Reassembled message is not valid JSON.");
+  }
+
+  const parsed = jsonRecordSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new ProtocolError(
+      "bad_json",
+      "JSON record does not match protocol v2.",
+    );
+  }
+
+  const record = parsed.data;
+  const red = record.o.r ?? null;
+  const ir = record.o.i ?? null;
+  const temperatureC = record.t.c ?? null;
+  const accel = record.i.a ?? null;
+  const gyro = record.i.g ?? null;
+
+  return {
+    uptimeMs: record.up ?? 0,
+    flags: 0,
+    optical: {
+      status: consistentStatus(record.o.s, red !== null && ir !== null),
+      red,
+      ir,
+      samples: record.o.n ?? 0,
+    },
+    temperature: {
+      status: consistentStatus(record.t.s, temperatureC !== null),
+      valueC: temperatureC,
+    },
+    imu: {
+      status: consistentStatus(record.i.s, accel !== null && gyro !== null),
+      accelG: accel as [number, number, number] | null,
+      gyroDps: gyro as [number, number, number] | null,
+    },
+  };
 }

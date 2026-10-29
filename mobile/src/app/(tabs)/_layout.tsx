@@ -36,6 +36,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="history"
         options={{
+          headerShown: false,
           title: "History",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="time-outline" size={size} color={String(color)} />
@@ -45,6 +46,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="alerts"
         options={{
+          headerShown: false,
           title: "Alerts",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="notifications-outline" size={size} color={String(color)} />
@@ -54,6 +56,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="settings"
         options={{
+          headerShown: false,
           title: "Settings",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="settings-outline" size={size} color={String(color)} />

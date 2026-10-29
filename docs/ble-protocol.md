@@ -2,12 +2,13 @@
 
 **Status:** implemented by `firmware/main.py` and the mobile app.
 
-> The design document shows a JSON payload as a *recommendation*. The firmware
-> in this repository does not send JSON: it sends a 28-byte binary frame split
-> across notifications. The app implements the firmware's format, because
-> inventing a schema that disagrees with the device was explicitly ruled out.
-> If the firmware moves to JSON, both ends must change together and this
-> document must be re-versioned.
+**Current firmware: protocol v2 (JSON).** The original firmware sent a 28-byte
+binary frame; the rewritten firmware sends a JSON measurement record over the
+same GATT service. The app accepts **both** and validates each before display.
+
+The GATT contract and the fragmentation header did not change — only the
+payload. If either side changes again, both must change together and this
+document must be re-versioned.
 
 ## GATT
 
@@ -30,14 +31,73 @@ Every sensor notification is:
 | 0 | 2 | uint16 BE | Message sequence (wraps at 65535) |
 | 2 | 1 | uint8 | Fragment index (0-based) |
 | 3 | 1 | uint8 | Fragment count |
-| 4 | 0–16 | bytes | Payload fragment |
+| 4 | 0–20 | bytes | Payload fragment (default-MTU maximum) |
 
-The firmware chunks the frame in **16-byte** pieces, so a 28-byte frame arrives
-as two notifications (16 + 12). One notification is *not* one message.
+The current firmware chunks messages in **20-byte** pieces (the largest
+payload that fits the default ATT MTU of 23). A 28-byte binary frame arrives as
+two notifications (20 + 8); a JSON record of ~135 bytes arrives as seven. One
+notification is *not* one message.
 
 `TEST:0001`-style ASCII notifications are also accepted. They carry no header
 and are **transport proof only** — the app displays them in the device card and
 never stores or plots them as measurements.
+
+## Protocol v2 — JSON measurement record
+
+The measurement characteristic carries one JSON object per message. It is
+larger than a single notification, so it uses the same fragmentation header
+described above (20-byte payload chunks in the current firmware).
+
+```json
+{
+  "v": 2,
+  "seq": 39,
+  "up": 45316,
+  "o": { "s": "ok", "r": 1520, "i": 1427, "n": 32 },
+  "t": { "s": "unvalidated" },
+  "i": { "s": "unvalidated" }
+}
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `v` | int | Protocol version. Must be `2`. |
+| `seq` | uint16 | Message sequence, wraps at 65535. |
+| `up` | uint32 | Device uptime in ms. **Not** wall-clock time. |
+| `o.s` | string | Optical status: `ok`, `unavailable`, `error`, `unvalidated`. |
+| `o.r`, `o.i` | int/null | Raw red / IR counts. 18-bit values in the firmware. |
+| `o.n` | uint8 | Samples averaged into this record. |
+| `t.s` | string | Temperature status. |
+| `t.c` | float/null | Temperature in °C, only when status is `ok`. |
+| `i.s` | string | IMU status. |
+| `i.a`, `i.g` | [x,y,z]/null | Acceleration in g, gyro in °/s, only when `ok`. |
+
+Rules enforced by the app:
+
+- A sensor with status `ok` but no values is **downgraded to `error`**, so a
+  malformed record cannot masquerade as a measurement.
+- `unvalidated` never displays a value. The current firmware reports
+  temperature and IMU as `unvalidated` because their chip identities and
+  conversions are unconfirmed.
+- Unknown status strings, a different `v`, or malformed JSON cause the message
+  to be discarded and counted, not guessed at.
+- Missing fields stay missing. `null` never becomes `0`.
+
+A typical record is ~135 bytes → **7 fragments**. The app allows up to 32
+fragments / 4096 bytes per message.
+
+## Advertising
+
+The app scans with a service-UUID filter, so the service must be in the
+advertising payload. Flags (3 bytes) + a 128-bit UUID (17 bytes) fill 20 of the
+31-byte legacy payload, so the 14-character name is placed in the **scan
+response**. Both are visible to Android scan filters; dropping the UUID makes
+the device invisible to the app.
+
+## Legacy protocol v1 — binary frame
+
+Older firmware sent this 28-byte frame. The app still accepts it when it
+reassembles to exactly 28 bytes and does not begin with `{`.
 
 ## Frame layout (28 bytes)
 
@@ -101,7 +161,7 @@ A missing value is stored as `NULL`. The app never substitutes zero.
 The app's assembler (`src/features/ble/assembler.ts`) enforces:
 
 - Fragment count ≥ 1 and index < count.
-- Payload ≤ 16 bytes and notification > 4 bytes.
+- Payload ≤ 20 bytes and notification > 4 bytes.
 - Fragment count ≤ 16 and message ≤ 512 bytes.
 - Only one message in flight; a new sequence supersedes an unfinished one, and
   the new fragment is kept.

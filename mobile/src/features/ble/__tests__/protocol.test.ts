@@ -1,4 +1,7 @@
+import { FragmentAssembler, type AssemblyResult } from "@/features/ble/assembler";
 import {
+  decodeJsonRecord,
+  looksLikeJson,
   FLAG_IMU_PRESENT,
   FLAG_IMU_VALID,
   FLAG_OPTICAL_PRESENT,
@@ -115,7 +118,7 @@ describe("parseNotification", () => {
   it("rejects an oversized fragment payload", () => {
     const packet = new Uint8Array(4 + 32);
     packet[3] = 1;
-    expect(() => parseNotification(packet)).toThrow(/allows 16/);
+    expect(() => parseNotification(packet)).toThrow(/allows 20/);
   });
 
   it("rejects a notification with no payload", () => {
@@ -131,5 +134,111 @@ describe("readTestMessage", () => {
 
   it("does not mistake binary frames for text", () => {
     expect(readTestMessage(buildFrame())).toBeNull();
+  });
+});
+
+describe("JSON protocol v2", () => {
+  const encode = (value: unknown) =>
+    Uint8Array.from(Buffer.from(JSON.stringify(value), "utf8"));
+
+  const valid = {
+    v: 2,
+    seq: 39,
+    up: 45316,
+    o: { s: "ok", r: 1520, i: 1427, n: 32 },
+    t: { s: "unvalidated" },
+    i: { s: "unvalidated" },
+  };
+
+  it("decodes a valid JSON record", () => {
+    const decoded = decodeJsonRecord(encode(valid));
+    expect(decoded.uptimeMs).toBe(45316);
+    expect(decoded.optical).toEqual({
+      status: "ok",
+      red: 1520,
+      ir: 1427,
+      samples: 32,
+    });
+    expect(decoded.temperature).toEqual({ status: "unvalidated", valueC: null });
+    expect(decoded.imu.status).toBe("unvalidated");
+    expect(decoded.imu.accelG).toBeNull();
+  });
+
+  it("downgrades an ok sensor that sent no values to error", () => {
+    const decoded = decodeJsonRecord(
+      encode({
+        ...valid,
+        o: { s: "ok", r: null, i: null, n: 0 },
+        t: { s: "ok" },
+        i: { s: "ok" },
+      }),
+    );
+    expect(decoded.optical.status).toBe("error");
+    expect(decoded.temperature.status).toBe("error");
+    expect(decoded.imu.status).toBe("error");
+  });
+
+  it("keeps a validated value when status is ok", () => {
+    const decoded = decodeJsonRecord(
+      encode({
+        ...valid,
+        t: { s: "ok", c: 36.5 },
+        i: { s: "ok", a: [0.01, 0, 1], g: [0, 0, 0] },
+      }),
+    );
+    expect(decoded.temperature).toEqual({ status: "ok", valueC: 36.5 });
+    expect(decoded.imu.status).toBe("ok");
+    expect(decoded.imu.accelG).toEqual([0.01, 0, 1]);
+  });
+
+  it("rejects a different protocol version", () => {
+    expect(() => decodeJsonRecord(encode({ ...valid, v: 1 }))).toThrow(
+      /protocol v2/,
+    );
+  });
+
+  it("rejects malformed JSON", () => {
+    expect(() => decodeJsonRecord(Uint8Array.from(Buffer.from("{nope")))).toThrow(
+      /not valid JSON/,
+    );
+  });
+
+  it("rejects an unknown sensor status", () => {
+    expect(() =>
+      decodeJsonRecord(encode({ ...valid, t: { s: "good" } })),
+    ).toThrow(/protocol v2/);
+  });
+
+  it("distinguishes JSON from binary payloads", () => {
+    expect(looksLikeJson(encode(valid))).toBe(true);
+    expect(looksLikeJson(Uint8Array.from(Buffer.from("  \n" + JSON.stringify(valid))))).toBe(true);
+    expect(looksLikeJson(buildFrame())).toBe(false);
+  });
+
+  it("reassembles a multi-fragment JSON record end to end", () => {
+    const message = encode(valid);
+    const packets = fragment(message, 99, 20);
+    const assembler = new FragmentAssembler();
+
+    let result: AssemblyResult | null = null;
+    for (const packet of packets) result = assembler.add(packet);
+
+    expect(result?.kind).toBe("complete");
+    if (result?.kind !== "complete") return;
+    const decoded = decodeJsonRecord(result.bytes);
+    expect(decoded.optical.red).toBe(1520);
+  });
+});
+
+describe("captured device payload", () => {
+  // Captured from the Pico over BLE after the v2 firmware rewrite.
+  const captured = '{"o": {"i": 1427, "n": 32, "s": "ok", "r": 1520}, "v": 2, "t": {"s": "unvalidated"}, "i": {"s": "unvalidated"}, "seq": 39, "up": 45316}';
+
+  it("parses what the hardware actually sends", () => {
+    const decoded = decodeJsonRecord(Uint8Array.from(Buffer.from(captured, "utf8")));
+    expect(decoded.uptimeMs).toBe(45316);
+    expect(decoded.optical).toEqual({ status: "ok", red: 1520, ir: 1427, samples: 32 });
+    expect(decoded.temperature).toEqual({ status: "unvalidated", valueC: null });
+    expect(decoded.imu.status).toBe("unvalidated");
   });
 });

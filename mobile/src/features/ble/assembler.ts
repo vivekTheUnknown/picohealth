@@ -7,8 +7,8 @@ import { ProtocolError, parseNotification, readTestMessage } from "@/features/bl
  * arrives as two notifications. Nothing here assumes notifications are
  * delivered in order, once, or at all.
  */
-export const MAX_FRAGMENTS = 16;
-export const MAX_MESSAGE_BYTES = 512;
+export const MAX_FRAGMENTS = 32;
+export const MAX_MESSAGE_BYTES = 4096;
 export const DEFAULT_FRAGMENT_TIMEOUT_MS = 2000;
 
 export type AssemblyResult =

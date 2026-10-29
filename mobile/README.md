@@ -10,8 +10,9 @@ Four tabs: **Dashboard**, **History**, **Alerts**, **Settings**.
 
 - Scans for `PicoHealth-DEV`, connects, discovers the custom GATT service, and
   subscribes to notifications.
-- Reassembles the firmware's fragmented binary frames, validates them, and keeps
-  each sensor's status independent.
+- Reassembles fragmented protocol-v2 JSON records (legacy 28-byte binary frames
+  are still accepted), validates them, and keeps each sensor's status
+  independent.
 - Shows raw optical counts, and shows **no** temperature or IMU value while the
   firmware marks those drivers invalid.
 - Stores accepted samples in SQLite and shows history with honest gaps.

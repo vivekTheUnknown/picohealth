@@ -12,7 +12,11 @@ import {
   stopScan,
   waitForPoweredOn,
 } from "@/features/ble/bleClient";
-import { decodeFrame } from "@/features/ble/protocol";
+import {
+  decodeFrame,
+  decodeJsonRecord,
+  looksLikeJson,
+} from "@/features/ble/protocol";
 import { ensureBlePermissions } from "@/services/permissions/ble";
 import type { ConnectionState, SensorFrame } from "@/types/health";
 import { base64ToBytes } from "@/utils/format";
@@ -119,7 +123,11 @@ export function useBleSession(options: BleSessionOptions): BleSession {
       }
 
       try {
-        const decoded = decodeFrame(result.bytes);
+        // v2 firmware sends JSON over the same characteristic; v1 sent the
+        // 28-byte binary frame. Both are accepted and validated.
+        const decoded = looksLikeJson(result.bytes)
+          ? decodeJsonRecord(result.bytes)
+          : decodeFrame(result.bytes);
         const frame: SensorFrame = {
           ...decoded,
           receivedAt: Date.now(),

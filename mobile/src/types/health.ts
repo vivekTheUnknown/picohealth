@@ -8,7 +8,8 @@ export const DEFAULT_DEVICE_NAME = "PicoHealth-DEV";
 /** Documented in docs/ble-protocol.md. The firmware is authoritative. */
 export const PROTOCOL_FRAME_BYTES = 28;
 export const NOTIFICATION_HEADER_BYTES = 4;
-export const MAX_FRAGMENT_PAYLOAD_BYTES = 16;
+// Default ATT MTU 23 minus the 3-byte notification header.
+export const MAX_FRAGMENT_PAYLOAD_BYTES = 20;
 
 export type SensorStatus = "ok" | "unavailable" | "error" | "unvalidated";
 
