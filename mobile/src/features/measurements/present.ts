@@ -14,7 +14,8 @@ export interface StatusPresentation {
 export function sensorStatus(status: SensorStatus): StatusPresentation {
   switch (status) {
     case "ok":
-      return { label: "Validated", tone: "success", icon: "checkmark-circle" };
+      // The driver is verified; the measurement is not clinically calibrated.
+      return { label: "Driver verified", tone: "success", icon: "checkmark-circle" };
     case "unvalidated":
       return { label: "Not validated", tone: "warning", icon: "help-circle" };
     case "error":
@@ -61,7 +62,7 @@ export function temperatureDetail(frame: SensorFrame): string {
   }
   if (status === "unavailable") return "Not detected. Check wiring and power.";
   if (status === "error") return "Invalid value discarded.";
-  return "Reported by the firmware as a validated driver.";
+  return "Chip identified and conversion checked against its datasheet. Not clinically calibrated.";
 }
 
 export function imuValue(frame: SensorFrame): string {
@@ -77,7 +78,7 @@ export function imuDetail(frame: SensorFrame): string {
   }
   if (status === "unavailable") return "Not detected. Check wiring and power.";
   if (status === "error") return "Invalid axes discarded.";
-  return "Validated driver; axes in g and °/s.";
+  return "Chip identified by WHO_AM_I; axes scaled per datasheet. Not clinically calibrated.";
 }
 
 /** One-line history summary that never overstates a sensor's status. */

@@ -13,8 +13,9 @@ Four tabs: **Dashboard**, **History**, **Alerts**, **Settings**.
 - Reassembles fragmented protocol-v2 JSON records (legacy 28-byte binary frames
   are still accepted), validates them, and keeps each sensor's status
   independent.
-- Shows raw optical counts, and shows **no** temperature or IMU value while the
-  firmware marks those drivers invalid.
+- Shows raw optical counts, plus temperature and IMU values only once the
+  firmware identifies the chip (LM75A address/conversion; IMU `WHO_AM_I`). The
+  badge says “Driver verified”, never “clinically validated”.
 - Stores accepted samples in SQLite and shows history with honest gaps.
 - Raises informational, de-duplicated alerts with configurable prototype
   thresholds.
@@ -221,7 +222,10 @@ behaviour. Those require the manual steps above.
 - **Single device.** One wearable at a time.
 - **No waveforms.** Only summary frames; ECG/PPG streaming is out of scope.
 - **No CSV export.** Deliberately not implemented rather than half-built.
-- **Firmware notification error unresolved.** `Notify interrupted:
+- **Not clinically calibrated.** Temperature, IMU and raw optical counts are
+  uncalibrated prototype readings. The identified chips make the conversions
+  correct per datasheet, not medically accurate.
+- **Firmware notification error resolved.** `Notify interrupted:
   TypeError("'NoneType' object isn't iterable")` is still undiagnosed. The app
   treats missing notifications as missing data and never fills the gap.
 

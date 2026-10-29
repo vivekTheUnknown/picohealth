@@ -20,7 +20,7 @@ const base: SensorFrame = {
 
 describe("sensor presentation", () => {
   it("uses explicit labels for every status", () => {
-    expect(sensorStatus("ok").label).toBe("Validated");
+    expect(sensorStatus("ok").label).toBe("Driver verified");
     expect(sensorStatus("unvalidated").label).toBe("Not validated");
     expect(sensorStatus("unavailable").label).toBe("Unavailable");
     expect(sensorStatus("error").label).toBe("Invalid data");

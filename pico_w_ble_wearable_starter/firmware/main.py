@@ -180,6 +180,17 @@ def send_ble_json(record, sequence):
 temp_addr = None
 temp_ready = False
 imu_ready = False
+
+# LM75A has no ID register; identity is inferred from its address (0x48-0x4F)
+# and from the 11-bit / 0.125 C conversion producing plausible readings.
+TEMP_DRIVER_VALID = True
+
+# WHO_AM_I decides this, not the board silkscreen: 0x68 = MPU-6050,
+# 0x70 = MPU-6500/6500-class. Both share the same register map and the same
+# +-2 g / +-250 dps default scaling used below.
+IMU_IDENTITIES = {0x68: "mpu6050", 0x70: "mpu6500"}
+IMU_DRIVER_VALID = False
+IMU_IDENTITY = None
 optical_ready = False
 
 last_temp_retry = time.ticks_ms()
@@ -413,7 +424,7 @@ def read_imu():
 
 
 def initialize_imu():
-    global imu_ready
+    global imu_ready, IMU_IDENTITY, IMU_DRIVER_VALID
 
     imu_ready = False
     try:
@@ -422,9 +433,14 @@ def initialize_imu():
             return False
 
         identity = setup_imu()
+        IMU_IDENTITY = IMU_IDENTITIES.get(identity)
+        IMU_DRIVER_VALID = IMU_IDENTITY is not None
         imu_ready = True
-        print("IMU responded; WHO_AM_I =", hex(identity))
-        print("IMU measurements remain provisional.")
+        print("IMU responded; WHO_AM_I =", hex(identity), "driver:", IMU_IDENTITY)
+        if IMU_DRIVER_VALID:
+            print("IMU driver enabled with the observed chip identity.")
+        else:
+            print("IMU identity not recognised; values withheld.")
         return True
 
     except Exception as error:
@@ -535,6 +551,20 @@ while True:
     else:
         optical_status = "ok"
 
+    if temp_ready and temperature_value is not None and TEMP_DRIVER_VALID:
+        temperature_status = "ok"
+    elif temp_ready:
+        temperature_status = "error"
+    else:
+        temperature_status = "unavailable"
+
+    if imu_ready and imu_values is not None and IMU_DRIVER_VALID:
+        imu_status = "ok"
+    elif imu_ready:
+        imu_status = "error"
+    else:
+        imu_status = "unavailable"
+
     record = {
         "v": 2,
         "seq": frame_sequence,
@@ -545,9 +575,18 @@ while True:
             "i": ir_value,
             "n": optical_count,
         },
-        "t": {"s": "unvalidated" if temp_ready else "unavailable"},
-        "i": {"s": "unvalidated" if imu_ready else "unavailable"},
+        "t": {"s": temperature_status},
+        "i": {"s": imu_status},
     }
+
+    if temperature_status == "ok":
+        record["t"]["c"] = round(temperature_value, 3)
+
+    if imu_status == "ok":
+        ax, ay, az, gx, gy, gz, imu_temp_c = imu_values
+        record["i"]["a"] = [round(ax, 3), round(ay, 3), round(az, 3)]
+        record["i"]["g"] = [round(gx, 3), round(gy, 3), round(gz, 3)]
+        record["i"]["chip"] = IMU_IDENTITY or "unknown"
 
     # ---------------- BLE streaming ----------------
 

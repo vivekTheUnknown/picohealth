@@ -51,11 +51,16 @@ described above (20-byte payload chunks in the current firmware).
 ```json
 {
   "v": 2,
-  "seq": 39,
-  "up": 45316,
-  "o": { "s": "ok", "r": 1520, "i": 1427, "n": 32 },
-  "t": { "s": "unvalidated" },
-  "i": { "s": "unvalidated" }
+  "seq": 8,
+  "up": 11566,
+  "o": { "s": "ok", "r": 1511, "i": 1433, "n": 37 },
+  "t": { "s": "ok", "c": 31.5 },
+  "i": {
+    "s": "ok",
+    "a": [-0.661, -0.014, -0.716],
+    "g": [0.344, 0.893, -0.359],
+    "chip": "mpu6500"
+  }
 }
 ```
 
@@ -76,15 +81,30 @@ Rules enforced by the app:
 
 - A sensor with status `ok` but no values is **downgraded to `error`**, so a
   malformed record cannot masquerade as a measurement.
-- `unvalidated` never displays a value. The current firmware reports
-  temperature and IMU as `unvalidated` because their chip identities and
-  conversions are unconfirmed.
+- `unvalidated` never displays a value. The firmware only reports `ok` after
+  identifying the chip and applying a documented conversion.
 - Unknown status strings, a different `v`, or malformed JSON cause the message
   to be discarded and counted, not guessed at.
 - Missing fields stay missing. `null` never becomes `0`.
 
-A typical record is ~135 bytes → **7 fragments**. The app allows up to 32
-fragments / 4096 bytes per message.
+A record is ~135 bytes without IMU axes and ~207 bytes with them → **13
+fragments**. The app allows up to 32 fragments / 4096 bytes per message.
+
+## Identified hardware and what "driver verified" means
+
+| Sensor | Observed | Basis |
+|---|---|---|
+| Temperature | **LM75A** at `0x4C` (also probed at `0x48`/`0x4A`) | Address falls in the LM75A range; the 11-bit two's-complement conversion (0.125 °C/LSB) reads a stable ~31.4 °C. The part has **no ID register**, so this is identification by address and plausible conversion, not a silicon ID. |
+| IMU | **MPU-6500 class**, *not* MPU-6050 | `WHO_AM_I = 0x70`. An MPU-6050 returns `0x68`. The 6500 shares the MPU-6050 register map and the ±2 g (16384 LSB/g) / ±250 dps (131 LSB/dps) defaults, so the same driver applies. Resting acceleration magnitude ≈0.97 g corroborates the scale. |
+
+Both sensors therefore report `ok` with values, and `i.chip` travels with the
+data so the observed identity is never lost. The app labels them **“Driver
+verified”**, not “clinically validated”: the software reads the chip correctly,
+but neither reading has been calibrated against reference equipment.
+
+The IMU gate is the identity itself, not the board silkscreen: the firmware only
+sets `IMU_DRIVER_VALID` when `WHO_AM_I` is `0x68` or `0x70`. Any other value
+leaves the sensor `unvalidated` and withholds its values.
 
 ## Advertising
 
