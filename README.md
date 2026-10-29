@@ -14,10 +14,14 @@ enforced in the API on every request, per resource.
 ## Layout
 
 ```
-architecture.md   system architecture specification
-design.md         product and interface specification
-backend/          FastAPI API, SQLAlchemy models, Alembic migrations, tests
-frontend/         Next.js portal (App Router, TypeScript, Tailwind)
+architecture.md              system architecture specification (portal)
+design.md                    product and interface specification (portal)
+PicoHealth_design.md         Android companion app specification
+backend/                     FastAPI API, SQLAlchemy models, Alembic migrations, tests
+frontend/                    Next.js portal (App Router, TypeScript, Tailwind)
+mobile/                      React Native + Expo Android app (PicoHealth)
+docs/ble-protocol.md         BLE frame format implemented by firmware and app
+pico_w_ble_wearable_starter/ original Pico W firmware, demo FastAPI, Flutter starter
 ```
 
 ## Quick start
@@ -52,6 +56,36 @@ Sign in with a seeded account:
 
 `unassigned@example.com` is a doctor with no patients — useful for confirming
 that access control, not just navigation, is doing the work.
+
+## Android companion app (PicoHealth)
+
+A React Native + Expo app for the Pico W wearable. It connects over BLE,
+reassembles the firmware's binary frames, stores accepted samples in SQLite, and
+can optionally upload them to the demo FastAPI.
+
+```bash
+cd mobile
+npm install
+npx expo run:android     # needs Android SDK; use EAS Build otherwise
+```
+
+A custom development build is required — Expo Go cannot load the BLE native
+module. Full instructions, permissions, and troubleshooting are in
+`mobile/README.md`; the frame format is in `docs/ble-protocol.md`.
+
+Honesty rules enforced by the app:
+
+- Raw MAX30102 counts are labelled raw. They are never called heart rate or SpO₂.
+- Temperature and IMU show **no values** while the firmware marks their drivers
+  invalid. Missing data is `null`, never zero.
+- Gap detection is explicit; history is never interpolated.
+- Stale data is labelled with its last-received time, not shown as current.
+- Upload is off by default and never sends demo samples.
+
+Verified on this machine: 70 unit tests, TypeScript, Expo Doctor 20/20, an
+Android Metro bundle, and a generated manifest with
+`BLUETOOTH_SCAN` + `neverForLocation`. Not verified: the native build, a real
+BLE session, and on-device SQLite — no Android SDK, phone, or Pico was attached.
 
 ## Core design decisions
 
