@@ -128,6 +128,8 @@ def record_out(
     db,
     record: AppMeasurementRecord,
     devices: dict | None = None,
+    *,
+    include_extra: bool = True,
 ) -> AppRecordOut:
     """Serialize a record.
 
@@ -154,7 +156,9 @@ def record_out(
         activity_level=record.activity_level,
         activity_rms_g=record.activity_rms_g,
         orientation_class=record.orientation_class,
-        extra=record.extra,
+        # Raw sensor context is large and the UI only renders it for the
+        # newest snapshot. Lists omit it for older rows.
+        extra=record.extra if include_extra else None,
     )
 
 
@@ -313,7 +317,10 @@ def list_records(
         if device_ids
         else {}
     )
-    return [record_out(db, row, devices) for row in rows]
+    return [
+        record_out(db, row, devices, include_extra=(index == 0))
+        for index, row in enumerate(rows)
+    ]
 
 
 def latest_record(db, patient_id: uuid.UUID) -> AppMeasurementRecord | None:
