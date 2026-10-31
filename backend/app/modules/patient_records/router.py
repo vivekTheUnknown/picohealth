@@ -124,8 +124,17 @@ def _device_for(db, record: AppMeasurementRecord) -> Device | None:
     return db.get(Device, record.device_id)
 
 
-def record_out(db, record: AppMeasurementRecord) -> AppRecordOut:
-    device = _device_for(db, record)
+def record_out(
+    db,
+    record: AppMeasurementRecord,
+    devices: dict | None = None,
+) -> AppRecordOut:
+    """Serialize a record.
+
+    Lists pass a preloaded device map; without it this would issue one query
+    per row and turn a 500-record page into 500 Neon round-trips.
+    """
+    device = devices.get(record.device_id) if devices is not None else _device_for(db, record)
     return AppRecordOut(
         id=record.id,
         client_record_id=record.client_record_id,
@@ -297,7 +306,14 @@ def list_records(
         .limit(limit)
         .all()
     )
-    return [record_out(db, row) for row in rows]
+
+    device_ids = {row.device_id for row in rows if row.device_id is not None}
+    devices = (
+        {device.id: device for device in db.query(Device).filter(Device.id.in_(device_ids)).all()}
+        if device_ids
+        else {}
+    )
+    return [record_out(db, row, devices) for row in rows]
 
 
 def latest_record(db, patient_id: uuid.UUID) -> AppMeasurementRecord | None:

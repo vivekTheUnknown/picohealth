@@ -21,7 +21,7 @@ export const CSRF_HEADER_NAME = "X-CSRF-Token";
 export const UNAUTHORIZED_EVENT = "portal:unauthorized";
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const DEFAULT_TIMEOUT_MS = 20_000;
+const DEFAULT_TIMEOUT_MS = 45_000;
 
 export interface ApiErrorPayload {
   error?: {
