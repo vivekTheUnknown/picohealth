@@ -80,6 +80,12 @@ export interface SensorFrame {
   activityLevel?: ActivityLevel;
   activityRmsG?: number | null;
   orientationClass?: DeviceOrientation | null;
+  /** Orientation angles from the gravity vector, in degrees. */
+  rollDeg?: number | null;
+  pitchDeg?: number | null;
+  yawDeg?: number | null;
+  /** Gravity-removed acceleration components, in g. */
+  lateralG?: [number, number, number] | null;
 }
 
 /** One 1 Hz snapshot for the live graphs. */

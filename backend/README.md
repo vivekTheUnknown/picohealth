@@ -16,14 +16,19 @@ cp .env.example .env
 
 Seed accounts (development only, never in production):
 
-| role   | email                   | password                 |
-|--------|-------------------------|--------------------------|
-| admin  | admin@example.com       | dev-password-change-me   |
-| doctor | doctor@example.com      | dev-password-change-me   |
-| doctor | unassigned@example.com  | dev-password-change-me   |
+| role    | sign-in                | password               |
+|---------|------------------------|------------------------|
+| admin   | admin@example.com      | dev-password-change-me |
+| doctor  | doctor@example.com     | dev-password-change-me |
+| patient | kode vivek sai         | kodeviveksai           |
 
-`unassigned@example.com` deliberately has no patient assignments, so the
-negative authorization paths can be exercised by hand.
+The patient account is linked to one patient record (`PT-KVS-0001`) and the
+doctor is assigned to it. The seed creates **no** devices, measurements or
+events; those arrive only from the app.
+
+`POST /api/v1/auth/token` issues a bearer token for the mobile app using the
+same email-or-account-name login. Bearer requests are CSRF-exempt because they
+carry no ambient cookie.
 
 API docs: <http://localhost:8000/docs>
 
@@ -46,11 +51,12 @@ app/
                  rate limiting, pagination, middleware
   models/        identity, patients, devices, clinical
   modules/
-    auth/        login, logout, recover, reset, invitations
+    auth/        login (email or name), bearer token, logout, recover, reset
     patients/    doctor-scoped directory, admin CRUD
     assignments/ doctor-patient relationships
     devices/     registry, linkage, monitoring profiles
     measurements/bounded time-series reads
+    patient_records/ patient self-service, direct app ingestion, clinician reads
     events/      alert lifecycle and transitions
     notes/       clinician notes (no delete, by design)
     users/       admin user management, roles, permission grants

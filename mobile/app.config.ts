@@ -13,6 +13,7 @@ const plugins: NonNullable<ExpoConfig["plugins"]> = [
   "expo-router",
   "expo-sqlite",
   "expo-dev-client",
+  "expo-secure-store",
   // Marks BLUETOOTH_SCAN with usesPermissionFlags="neverForLocation" so the app
   // does not need location permission on Android 12+.
   "./plugins/withBlePermissions",

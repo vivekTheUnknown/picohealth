@@ -31,7 +31,7 @@ Four tabs: **Dashboard**, **History**, **Alerts**, **Settings**.
   whole app including native dialogs.
 - Raises informational, de-duplicated alerts with configurable prototype
   thresholds.
-- Optionally uploads live samples to the starter FastAPI, off by default.
+- Optionally syncs processed records to the health portal, off by default.
 
 ## Requirements
 
@@ -84,25 +84,28 @@ That flag sets `android.usesCleartextTraffic` for that build only. Do not ship a
 release build with it. The Settings screen warns whenever the configured URL is
 plain HTTP.
 
-## Backend (optional)
+## Portal sync (optional)
 
-The starter API lives in `../pico_w_ble_wearable_starter/backend`:
+The app syncs its processed records directly to the health portal in
+`../backend`. Conversion, quality gating and derived metrics stay on the phone.
 
 ```bash
-cd ../pico_w_ble_wearable_starter/backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+cd ../backend
+.venv/bin/alembic upgrade head
+.venv/bin/python -m scripts.seed
+.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-In the app: **Settings → Backend upload**, enter the laptop's LAN address
-(e.g. `http://192.168.1.20:8000`), **Test connection**, then enable upload and
-confirm the disclosure. `localhost` on the phone points at the phone, not the
-laptop.
+In the app: **Settings → Health portal**, enter the laptop's LAN address
+(e.g. `http://192.168.1.20:8000`), the patient account name and password, then
+**Connect to portal**. `localhost` on the phone points at the phone, not the
+laptop. The patient account is seeded as `kode vivek sai` / `kodeviveksai`.
 
-The demo token comes from `EXPO_PUBLIC_DEMO_TOKEN` (default
-`dev-only-change-me`, matching the server). It is a shared demo secret, not
-authentication. No token is written to SQLite or AsyncStorage.
+The token is obtained from `POST /api/v1/auth/token` and stored in the platform
+keystore via `expo-secure-store`. The password is never stored. Records are
+queued in SQLite and posted in batches; `client_record_id` makes retries
+idempotent, and failed batches remain queued for the 20-second retry loop.
+Demo records are excluded from the queue. See `../docs/app-portal-sync.md`.
 
 ## Permissions
 
@@ -151,7 +154,8 @@ mobile/
 │   │   ├── alerts/            pure rules engine
 │   │   └── settings/          defaults, validation, URL policy
 │   ├── services/
-│   │   ├── api/               backend adapter + payload mapping
+│   │   ├── api/               portal client + payload mapping
+│   │   ├── portal/            secure token storage
 │   │   ├── permissions/       runtime BLE permission requests
 │   │   └── storage/           SQLite schema + repository
 │   ├── theme/tokens.ts        light/dark palettes, spacing, type
@@ -250,7 +254,7 @@ Tests cover the parts where a mistake would make the app lie:
 | Freshness | boundary at the stale window; no-data state; gaps not invented |
 | Alerts | one alert per episode; recovery re-arms; cooldown; temperature rules only when validated; no diagnostic or emergency wording |
 | Payload | unavailable and unvalidated values become `null`; a genuine `0` is still sent |
-| Settings | clamping, URL policy, upload cannot be enabled without a destination, corrupt storage rejected |
+| Settings | clamping, URL policy, sync cannot be enabled without a connected patient account, corrupt storage rejected |
 | Presentation | no heart-rate/SpO₂ claims from raw counts; `--` instead of zero |
 | MAX30102 | 25 Hz resampling, 4 s window, reference algorithm, valid/invalid synthesis cases |
 | Raw protocol | JSON messages, binary batches, malformed/truncated input |
@@ -264,10 +268,12 @@ behaviour. Those require the manual steps above.
 
 - **No device authentication.** The firmware does not authenticate; anyone in
   range could advertise the same service UUID. Do not use with real data.
-- **Shared demo token.** The starter API has no accounts; uploads use one demo
-  bearer token. Real deployments need per-device credentials in secure storage.
-- **Upload is at-least-once.** The local id is sent as `client_measurement_id`,
-  but the starter API ignores it, so a lost response can duplicate a sample.
+- **Token in the keystore.** The bearer token is stored with
+  `expo-secure-store`; the password is never persisted. Token expiry requires
+  signing in again.
+- **Sync is at-least-once on the wire, idempotent on the server.** The local id
+  is sent as `client_record_id`, which is unique server-side, so a retried
+  batch cannot duplicate a sample.
 - **Foreground only.** Reconnection stops when the app is backgrounded; there is
   no background service or guarantee.
 - **Single device.** One wearable at a time.

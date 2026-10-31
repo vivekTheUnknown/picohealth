@@ -44,6 +44,10 @@ async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
           activity_level TEXT,
           activity_rms_g REAL,
           orientation_class TEXT,
+          roll_deg REAL,
+          pitch_deg REAL,
+          yaw_deg REAL,
+          lateral_g_json TEXT,
           algorithm_version TEXT,
           uploaded INTEGER NOT NULL DEFAULT 0,
           uploaded_at TEXT
@@ -94,6 +98,10 @@ async function ensureMeasurementColumns(database: SQLite.SQLiteDatabase): Promis
     ["activity_level", "TEXT"],
     ["activity_rms_g", "REAL"],
     ["orientation_class", "TEXT"],
+    ["roll_deg", "REAL"],
+    ["pitch_deg", "REAL"],
+    ["yaw_deg", "REAL"],
+    ["lateral_g_json", "TEXT"],
     ["algorithm_version", "TEXT"],
   ];
   for (const [name, type] of additions) {
@@ -131,6 +139,10 @@ interface MeasurementRow {
   activity_level: string | null;
   activity_rms_g: number | null;
   orientation_class: string | null;
+  roll_deg: number | null;
+  pitch_deg: number | null;
+  yaw_deg: number | null;
+  lateral_g_json: string | null;
   algorithm_version: string | null;
   uploaded: number;
   uploaded_at: string | null;
@@ -191,6 +203,10 @@ function toRecord(row: MeasurementRow): MeasurementRecord {
     orientationClass:
       (row.orientation_class as MeasurementRecord["orientationClass"]) ??
       undefined,
+    rollDeg: row.roll_deg,
+    pitchDeg: row.pitch_deg,
+    yawDeg: row.yaw_deg,
+    lateralG: parseTriple(row.lateral_g_json),
     algorithmVersion: row.algorithm_version ?? undefined,
     uploaded: row.uploaded === 1,
     uploadedAt: row.uploaded_at,
@@ -206,9 +222,10 @@ export async function insertMeasurement(record: MeasurementRecord): Promise<void
       temperature_c, red_raw, ir_raw, accel_json, gyro_json, samples,
       source, heart_rate_bpm, spo2_percent, hr_valid, spo2_valid, signal_quality,
       perfusion_index_percent, prv_rmssd_ms, prv_beats,
-      activity_level, activity_rms_g, orientation_class, algorithm_version,
+      activity_level, activity_rms_g, orientation_class,
+      roll_deg, pitch_deg, yaw_deg, lateral_g_json, algorithm_version,
       uploaded, uploaded_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       record.id,
       new Date(record.receivedAt).toISOString(),
@@ -237,6 +254,10 @@ export async function insertMeasurement(record: MeasurementRecord): Promise<void
       record.activityLevel ?? null,
       record.activityRmsG ?? null,
       record.orientationClass ?? null,
+      record.rollDeg ?? null,
+      record.pitchDeg ?? null,
+      record.yawDeg ?? null,
+      record.lateralG ? JSON.stringify(record.lateralG) : null,
       record.algorithmVersion ?? null,
       record.uploaded ? 1 : 0,
       record.uploadedAt,
@@ -286,11 +307,24 @@ export async function deleteMeasurementsBefore(cutoffMs: number): Promise<number
 
 export async function listPendingUploads(limit = 25): Promise<MeasurementRecord[]> {
   const database = await getDatabase();
+  // Demo records are synthetic and must never reach the portal, so they are
+  // excluded from the queue rather than marked as uploaded.
   const rows = await database.getAllAsync<MeasurementRow>(
-    `SELECT * FROM measurements WHERE uploaded = 0 ORDER BY received_ms ASC LIMIT ?`,
+    `SELECT * FROM measurements
+     WHERE uploaded = 0 AND source = 'live'
+     ORDER BY received_ms ASC LIMIT ?`,
     [limit],
   );
   return rows.map(toRecord);
+}
+
+export async function countPendingUploads(): Promise<number> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ total: number }>(
+    `SELECT COUNT(*) AS total FROM measurements
+     WHERE uploaded = 0 AND source = 'live'`,
+  );
+  return row?.total ?? 0;
 }
 
 export async function markUploaded(id: string): Promise<void> {

@@ -7,6 +7,7 @@ import { HeartPulse, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { Me } from "@/lib/types";
 import { isActivePath, sectionsFor } from "@/components/navigation/nav-config";
+import { landingPath } from "@/lib/permissions";
 
 export interface SidebarProps {
   me: Me;
@@ -43,7 +44,7 @@ export function Sidebar({
         )}
       >
         <Link
-          href={me.roles.includes("admin") ? "/admin/overview" : "/overview"}
+          href={landingPath(me)}
           onClick={onNavigate}
           className="flex min-w-0 items-center gap-2.5 rounded-sm"
           aria-label="Health Monitoring clinical portal"

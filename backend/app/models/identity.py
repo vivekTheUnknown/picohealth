@@ -57,6 +57,12 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
         foreign_keys="DoctorProfile.user_id",
     )
+    patient_profile: Mapped[PatientProfile | None] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        foreign_keys="PatientProfile.user_id",
+    )
 
     def active_roles(self) -> set[Role]:
         return {Role(r.role) for r in self.roles if r.revoked_at is None}
@@ -131,6 +137,32 @@ class DoctorProfile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     verified_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
 
     user: Mapped[User] = relationship(back_populates="doctor_profile", foreign_keys=[user_id])
+
+
+class PatientProfile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """The account-to-patient link for a patient user.
+
+    One user maps to exactly one patient record, and one patient record to at
+    most one login. Every patient-scoped route resolves the patient through
+    this row; it never accepts a patient id from the client.
+    """
+
+    __tablename__ = "patient_profiles"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("patients.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+
+    user: Mapped[User] = relationship(back_populates="patient_profile", foreign_keys=[user_id])
 
 
 class Session(UUIDPrimaryKeyMixin, Base):

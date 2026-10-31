@@ -18,14 +18,12 @@ describe("normalizeSettings", () => {
       staleAfterMs: 1,
       retentionDays: 9999,
       opticalMaxCount: 0,
-      patientId: -5,
       deviceName: "x".repeat(80),
     });
 
     expect(settings.staleAfterMs).toBe(2000);
     expect(settings.retentionDays).toBe(365);
     expect(settings.opticalMaxCount).toBe(1000);
-    expect(settings.patientId).toBe(1);
     expect(settings.deviceName).toHaveLength(32);
   });
 

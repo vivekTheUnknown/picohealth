@@ -75,19 +75,30 @@ export default function SettingsScreen() {
     ble,
     storedCount,
     clearAllData,
-    uploadStatus,
-    testConnection,
+    portal,
+    connectPortal,
+    disconnectPortal,
+    syncNow,
   } = usePicoHealth();
 
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ ok: boolean; detail: string } | null>(null);
+  const [urlDraft, setUrlDraft] = useState(settings.backendUrl);
+  const [identifier, setIdentifier] = useState(settings.portalIdentifier);
+  const [password, setPassword] = useState("");
+  const [connecting, setConnecting] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUrlDraft(settings.backendUrl);
+  }, [settings.backendUrl]);
+
+  useEffect(() => {
+    setIdentifier(settings.portalIdentifier);
+  }, [settings.portalIdentifier]);
 
   const commitBackendUrl = useCallback(
     async (raw: string) => {
       if (!raw.trim()) {
         setBackendError(null);
-        setTestResult(null);
         await updateSettings({ backendUrl: "", uploadEnabled: false });
         return;
       }
@@ -96,30 +107,52 @@ export default function SettingsScreen() {
         setBackendError("Enter a full URL starting with http:// or https://");
         return;
       }
+      if (normalized === settings.backendUrl) return;
       setBackendError(null);
+      // A different portal cannot reuse the old session.
+      if (portal.connected) await disconnectPortal();
       await updateSettings({ backendUrl: normalized });
     },
-    [updateSettings],
+    [disconnectPortal, portal.connected, settings.backendUrl, updateSettings],
   );
 
-  const runConnectionTest = async () => {
-    setTesting(true);
+  const handleConnect = async () => {
+    setBackendError(null);
+    const normalized = normalizeBaseUrl(urlDraft);
+    if (!normalized) {
+      setBackendError("Enter the portal URL first.");
+      return;
+    }
+    if (!identifier.trim()) {
+      setBackendError("Enter your patient account name.");
+      return;
+    }
+    if (!password) {
+      setBackendError("Enter your password.");
+      return;
+    }
+
+    setConnecting(true);
     try {
-      const result = await testConnection();
-      setTestResult({ ok: result.ok, detail: result.detail });
+      if (normalized !== settings.backendUrl) {
+        await updateSettings({ backendUrl: normalized });
+      }
+      const result = await connectPortal(identifier.trim(), password);
+      if (result.ok) setPassword("");
+      else setBackendError(result.detail);
     } finally {
-      setTesting(false);
+      setConnecting(false);
     }
   };
 
   const confirmEnableUpload = () => {
     Alert.alert(
-      "Upload measurements?",
-      "While connected, each live sample is sent to the configured backend: raw sensor values, sensor validity flags, device uptime, device id, and the demo patient id. No name, contact detail, or location is sent. Demo samples are never uploaded.",
+      "Sync measurements to the portal?",
+      "While connected, the app sends its processed readings to your health portal: heart rate, SpO₂, temperature, perfusion index, PRV, movement, device orientation, signal quality and the algorithm version, plus the raw sensor context. Demo samples are never sent. Records that fail stay queued on this phone.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Enable upload",
+          text: "Enable sync",
           onPress: () => {
             void updateSettings({ uploadEnabled: true });
           },
@@ -131,7 +164,7 @@ export default function SettingsScreen() {
   const confirmClear = () => {
     Alert.alert(
       "Delete local data?",
-      "This removes every measurement and alert stored on this phone. The backend is not changed. This cannot be undone.",
+      "This removes every measurement and alert stored on this phone. The portal is not changed. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -145,8 +178,6 @@ export default function SettingsScreen() {
     );
   };
 
-  const canUpload = Boolean(normalizeBaseUrl(settings.backendUrl));
-  const insecure = isInsecureRemoteUrl(settings.backendUrl);
   const appVersion = Constants.expoConfig?.version ?? "0.1.0";
 
   return (
@@ -268,107 +299,158 @@ export default function SettingsScreen() {
         />
       </Card>
 
-      <SectionTitle>Backend upload (optional)</SectionTitle>
+      <SectionTitle>Health portal</SectionTitle>
       <Card>
-        <Banner tone="info" title="Upload is off until you enable it">
-          The app works fully offline. Nothing is sent anywhere until you configure a backend and
-          turn upload on.
+        <Banner tone="info" title="Direct sync with your patient account">
+          Sign in once with the account provided by your clinic. The app keeps the bearer token in
+          the device keystore and sends processed readings straight to the portal. No readings are
+          sent until sync is enabled.
         </Banner>
 
-        <DraftField
-          label="Backend URL"
-          value={settings.backendUrl}
-          keyboardType="url"
-          placeholder="https://192.168.1.20:8000"
-          onCommit={(next) => {
-            void commitBackendUrl(next);
+        <Field
+          label="Portal URL"
+          value={urlDraft}
+          onChangeText={setUrlDraft}
+          onBlur={() => {
+            void commitBackendUrl(urlDraft);
           }}
+          keyboardType="url"
+          placeholder="http://192.168.1.20:8000"
           helper="Laptop LAN address or an HTTPS host. Do not use localhost on a phone."
           error={backendError}
         />
 
-        {settings.backendUrl ? (
-          <>
-            <Button
-              label="Test connection"
-              variant="secondary"
-              icon="wifi-outline"
-              loading={testing}
-              onPress={() => {
-                void runConnectionTest();
-              }}
-            />
+        {isInsecureRemoteUrl(urlDraft) ? (
+          <Banner tone="warning" title="Unencrypted HTTP">
+            This host is not on a private network. Use HTTPS before sending any real data.
+          </Banner>
+        ) : null}
 
-            {testResult ? (
-              <Banner
-                tone={testResult.ok ? "success" : "danger"}
-                title={testResult.ok ? "Backend reachable" : "Backend unreachable"}
-              >
-                {testResult.detail}
+        {portal.connected ? (
+          <>
+            <InfoRow
+              label="Account"
+              value={portal.identity ?? "connected"}
+            />
+            <InfoRow
+              label="Patient record"
+              value={portal.patientId ?? "not reported"}
+            />
+            <InfoRow
+              label="Sync state"
+              value={
+                <Badge
+                  label={
+                    portal.syncing
+                      ? "Syncing"
+                      : portal.error
+                        ? "Failed"
+                        : portal.pending > 0
+                          ? `${portal.pending} queued`
+                          : "Synced"
+                  }
+                  tone={
+                    portal.syncing
+                      ? "info"
+                      : portal.error
+                        ? "danger"
+                        : portal.pending > 0
+                          ? "warning"
+                          : "success"
+                  }
+                />
+              }
+            />
+            <Text style={[styles.helper, { color: colors.textSubtle }]}>
+              {portal.detail}
+              {portal.lastSyncAt
+                ? ` Last sync ${new Date(portal.lastSyncAt).toLocaleTimeString()}.`
+                : ""}
+            </Text>
+            {portal.error ? (
+              <Banner tone="danger" title="Last sync failed">
+                {portal.error}
               </Banner>
             ) : null}
 
-            {insecure ? (
-              <Banner tone="warning" title="Unencrypted HTTP">
-                This host is not on a private network. Use HTTPS before sending any real data.
+            <SwitchRow
+              label="Sync live measurements"
+              description="Processed records only, from this device. Demo samples are never sent."
+              value={settings.uploadEnabled}
+              onValueChange={(next) => {
+                if (next) confirmEnableUpload();
+                else void updateSettings({ uploadEnabled: false });
+              }}
+            />
+            <Button
+              label="Sync now"
+              variant="secondary"
+              icon="cloud-upload-outline"
+              loading={portal.syncing}
+              onPress={() => {
+                void syncNow();
+              }}
+            />
+            <Button
+              label="Disconnect"
+              variant="danger"
+              icon="log-out-outline"
+              onPress={() => {
+                Alert.alert(
+                  "Disconnect from the portal?",
+                  "The saved token is removed from this phone. Local records stay on the device and will sync again after you reconnect.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Disconnect",
+                      style: "destructive",
+                      onPress: () => {
+                        void disconnectPortal();
+                      },
+                    },
+                  ],
+                );
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <Field
+              label="Account name"
+              value={identifier}
+              onChangeText={setIdentifier}
+              placeholder="kode vivek sai"
+              helper="The patient name or email address on the portal account."
+            />
+            <Field
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              onSubmit={() => {
+                void handleConnect();
+              }}
+              helper="Used once to obtain a token; the password is not stored."
+            />
+            <Button
+              label="Connect to portal"
+              variant="primary"
+              icon="log-in-outline"
+              loading={connecting}
+              onPress={() => {
+                void handleConnect();
+              }}
+            />
+            <Text style={[styles.helper, { color: colors.textSubtle }]}>
+              {portal.detail}
+            </Text>
+            {portal.error ? (
+              <Banner tone="warning" title="Not connected">
+                {portal.error}
               </Banner>
             ) : null}
           </>
-        ) : null}
-
-        <SwitchRow
-          label="Upload live measurements"
-          description="Live samples only. Demo samples are never uploaded."
-          value={settings.uploadEnabled}
-          disabled={!canUpload}
-          onValueChange={(next) => {
-            if (next) confirmEnableUpload();
-            else void updateSettings({ uploadEnabled: false });
-          }}
-        />
-
-        <InfoRow
-          label="Upload status"
-          value={
-            <Badge
-              label={
-                uploadStatus.state === "uploaded"
-                  ? "Uploaded"
-                  : uploadStatus.state === "uploading"
-                    ? "Uploading"
-                    : uploadStatus.state === "failed"
-                      ? "Failed"
-                      : settings.uploadEnabled
-                        ? "Pending"
-                        : "Not enabled"
-              }
-              tone={
-                uploadStatus.state === "uploaded"
-                  ? "success"
-                  : uploadStatus.state === "failed"
-                    ? "danger"
-                    : settings.uploadEnabled
-                      ? "info"
-                      : "neutral"
-              }
-            />
-          }
-        />
-        <Text style={[styles.helper, { color: colors.textSubtle }]}>
-          {uploadStatus.detail}
-        </Text>
-
-        <Divider />
-        <DraftField
-          label="Demo patient id"
-          value={String(settings.patientId)}
-          keyboardType="numeric"
-          onCommit={(next) => {
-            const id = Number.parseInt(next, 10);
-            if (Number.isFinite(id)) void updateSettings({ patientId: id });
-          }}
-          helper="The starter backend has no accounts; samples are attached to this id."
-        />
+        )}
       </Card>
 
       <SectionTitle>Prototype alert thresholds</SectionTitle>
@@ -421,7 +503,7 @@ export default function SettingsScreen() {
       <Card>
         <SwitchRow
           label="Generate demo data"
-          description="Produces clearly labelled synthetic frames on this phone so the UI can be exercised without hardware. Never uploaded, never shown as a device."
+          description="Produces clearly labelled synthetic frames on this phone so the UI can be exercised without hardware. Never synced, never shown as a device."
           value={settings.demoMode}
           onValueChange={(next) => {
             void updateSettings({ demoMode: next });
@@ -453,11 +535,18 @@ export default function SettingsScreen() {
         <InfoRow label="App version" value={appVersion} />
         <InfoRow label="BLE protocol" value="v3 · raw JSON + optical batches" />
         <InfoRow label="Firmware" value="Not reported by the device" />
-        <InfoRow label="Data stored" value="Measurements and alerts, on this phone only" />
+        <InfoRow
+          label="Data stored"
+          value={
+            settings.uploadEnabled && portal.connected
+              ? "On this phone, plus synced records on the portal"
+              : "On this phone only"
+          }
+        />
         <Divider />
         <Text style={[styles.privacy, { color: colors.textMuted }]}>
-          Measurements are written to a local SQLite database. Uploading is opt-in and clearly
-          marked. Acknowledging an alert never deletes measurement history, and clearing local data
+          Measurements are written to a local SQLite database. Syncing to the portal is opt-in
+          and clearly marked. Acknowledging an alert never deletes measurement history, and clearing local data
           does not touch the backend. No analytics or crash reporting is configured. This prototype
           is not a medical device and makes no diagnostic claims.
         </Text>

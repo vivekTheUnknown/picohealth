@@ -20,6 +20,7 @@ CSRF_EXEMPT_PATHS = {
     "/api/v1/auth/recover",
     "/api/v1/auth/reset",
     "/api/v1/auth/accept-invitation",
+    "/api/v1/auth/token",
 }
 
 SECURITY_HEADERS = {
@@ -53,7 +54,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next) -> Response:
         if request.method in UNSAFE_METHODS and request.url.path.startswith("/api/"):
-            if request.url.path not in CSRF_EXEMPT_PATHS:
+            # A bearer token is not an ambient browser credential, so it cannot
+            # be replayed by a cross-site form. The mobile app has no CSRF
+            # cookie to echo.
+            authorization = request.headers.get("authorization", "")
+            has_bearer = authorization.lower().startswith("bearer ")
+            if request.url.path not in CSRF_EXEMPT_PATHS and not has_bearer:
                 cookie_token = request.cookies.get(settings.csrf_cookie_name)
                 header_token = request.headers.get("x-csrf-token")
 

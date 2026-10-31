@@ -18,6 +18,7 @@ from app.modules.devices.router import router as devices_router
 from app.modules.events.router import router as events_router
 from app.modules.measurements.router import router as measurements_router
 from app.modules.notes.router import router as notes_router
+from app.modules.patient_records.router import router as patient_records_router
 from app.modules.patients.router import admin_router as admin_patients_router
 from app.modules.patients.router import doctor_router as patients_router
 from app.modules.system_health.router import router as health_router
@@ -57,6 +58,7 @@ def create_app() -> FastAPI:
     prefix = settings.api_prefix
     app.include_router(auth_router, prefix=prefix)
     app.include_router(patients_router, prefix=prefix)
+    app.include_router(patient_records_router, prefix=prefix)
     app.include_router(admin_patients_router, prefix=prefix)
     app.include_router(events_router, prefix=prefix)
     app.include_router(measurements_router, prefix=prefix)

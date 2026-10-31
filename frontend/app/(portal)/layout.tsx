@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { HeartPulse, Loader2 } from "lucide-react";
 
 import { SessionProvider, useSession } from "@/lib/session";
 import { AppShell } from "@/components/layout/app-shell";
 import { ErrorState } from "@/components/layout/error-state";
 import { buttonClasses } from "@/components/forms/button";
+import { isPatient, isDoctor, isAdmin, landingPath } from "@/lib/permissions";
 
 function SessionLoading() {
   return (
@@ -52,13 +53,24 @@ function SessionRedirecting() {
 
 function PortalGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { me, status, error, refresh } = useSession();
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace("/login");
+      return;
     }
-  }, [status, router]);
+    if (status !== "ready" || !me) return;
+
+    const inPatientArea = pathname === "/patient" || pathname.startsWith("/patient/");
+    if (isPatient(me) && !isDoctor(me) && !isAdmin(me)) {
+      // Patients may also use the shared account settings page.
+      if (!inPatientArea && pathname !== "/settings") router.replace("/patient");
+      return;
+    }
+    if (inPatientArea) router.replace(landingPath(me));
+  }, [status, me, pathname, router]);
 
   if (status === "loading") return <SessionLoading />;
   if (status === "unauthenticated") return <SessionRedirecting />;

@@ -22,7 +22,7 @@ from app.core.enums import (
     VerificationStatus,
 )
 from app.core.errors import forbidden, not_found, unauthorized
-from app.models.identity import User
+from app.models.identity import PatientProfile, User
 from app.models.patients import DoctorPatientAssignment, Patient
 
 
@@ -79,6 +79,37 @@ def doctor_has_active_assignment(
     return False
 
 
+def patient_id_for_user(db: DbSession, user_id: uuid.UUID) -> uuid.UUID | None:
+    """The single patient record a patient account is linked to."""
+    return db.scalar(
+        select(PatientProfile.patient_id).where(PatientProfile.user_id == user_id)
+    )
+
+
+def require_self_patient(
+    db: DbSession,
+    ctx: AuthContext,
+    *,
+    permission: Permission = Permission.PATIENT_SELF_READ,
+) -> Patient:
+    """Resolve the caller's own patient record.
+
+    A patient user never supplies a patient id; the link decides. Missing link
+    is a 404, same as any other patient the caller cannot see.
+    """
+    if not ctx.has(permission):
+        raise forbidden(f"Missing required permission: {permission.value}")
+
+    patient_id = patient_id_for_user(db, ctx.user.id)
+    if patient_id is None:
+        raise not_found("Patient")
+
+    patient = db.get(Patient, patient_id)
+    if patient is None:
+        raise not_found("Patient")
+    return patient
+
+
 def require_patient_access(
     db: DbSession,
     ctx: AuthContext,
@@ -100,6 +131,13 @@ def require_patient_access(
     """
     patient = db.get(Patient, patient_id)
     if patient is None:
+        raise not_found("Patient")
+
+    # A patient account can only reach the record it is linked to.
+    if Role.PATIENT in ctx.roles:
+        linked = patient_id_for_user(db, ctx.user.id)
+        if linked == patient.id and ctx.has(Permission.PATIENT_SELF_READ):
+            return patient
         raise not_found("Patient")
 
     if Role.DOCTOR in ctx.roles:

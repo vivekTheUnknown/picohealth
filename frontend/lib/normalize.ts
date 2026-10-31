@@ -25,6 +25,7 @@ import { latestObservedAt } from "@/lib/freshness";
 import { defaultUnitForMetric } from "@/lib/format";
 import type {
   AdminOverview,
+  AppRecord,
   Assignment,
   AssignmentStatus,
   AssignmentType,
@@ -45,8 +46,10 @@ import type {
   MetricType,
   Patient,
   PatientOverview,
+  PatientSelf,
   PatientStatus,
   PatientSummary,
+  PortalDevice,
   PortalUser,
   QualityStatus,
   RecentChange,
@@ -69,7 +72,7 @@ function lower(value: unknown): string | null {
 }
 
 export function isRole(value: string): value is Role {
-  return value === "doctor" || value === "admin";
+  return value === "doctor" || value === "admin" || value === "patient";
 }
 
 export function normalizeUserStatus(value: unknown): UserStatus {
@@ -185,6 +188,7 @@ export function normalizeMe(raw: unknown): Me {
     doctor_verification_status: normalizeVerificationStatus(
       data.doctor_verification_status ?? (isDict(data.doctor_profile) ? data.doctor_profile.verification_status : null),
     ),
+    patient_id: asString(data.patient_id),
     last_login_at: asTimestamp(data.last_login_at),
   };
 }
@@ -936,3 +940,71 @@ export const METRIC_KEY_ORDER: MetricType[] = [
   "hrv",
   "activity",
 ];
+
+
+export function normalizeAppRecord(raw: unknown): AppRecord | null {
+  const data = asDict(raw);
+  if (!data) return null;
+  const id = asString(data.id) ?? asString(data.client_record_id);
+  if (!id) return null;
+  return {
+    id,
+    client_record_id: asString(data.client_record_id) ?? id,
+    patient_id: asString(data.patient_id),
+    device_id: asString(data.device_id),
+    device_hardware_id: firstString(data, ["device_hardware_id", "hardware_identifier"]),
+    measured_at: asTimestamp(data.measured_at),
+    received_at: asTimestamp(data.received_at),
+    algorithm_version: firstString(data, ["algorithm_version", "algorithm"]),
+    signal_quality: firstString(data, ["signal_quality", "quality_status"]),
+    heart_rate_bpm: firstNumber(data, ["heart_rate_bpm", "heart_rate"]),
+    spo2_percent: firstNumber(data, ["spo2_percent", "spo2"]),
+    temperature_c: firstNumber(data, ["temperature_c", "temperature"]),
+    perfusion_index_percent: firstNumber(data, ["perfusion_index_percent", "perfusion_index"]),
+    prv_rmssd_ms: firstNumber(data, ["prv_rmssd_ms", "prv_rmssd"]),
+    prv_beats: firstNumber(data, ["prv_beats"]),
+    activity_level: firstString(data, ["activity_level", "activity"]),
+    activity_rms_g: firstNumber(data, ["activity_rms_g", "activity_rms"]),
+    orientation_class: firstString(data, ["orientation_class", "orientation"]),
+    extra: asDict(data.extra),
+  };
+}
+
+export function normalizeAppRecordList(raw: unknown): AppRecord[] {
+  const array = findArray(raw, ["records", "items", "data", "results"]);
+  if (array) return compact(array.map(normalizeAppRecord));
+  if (Array.isArray(raw)) return compact(raw.map(normalizeAppRecord));
+  return [];
+}
+
+export function normalizePortalDevice(raw: unknown): PortalDevice | null {
+  const data = asDict(raw);
+  if (!data) return null;
+  const id = asString(data.id);
+  const hardware = firstString(data, ["hardware_identifier", "device_hardware_id", "name"]);
+  if (!id || !hardware) return null;
+  return {
+    id,
+    hardware_identifier: hardware,
+    firmware_version: firstString(data, ["firmware_version", "firmware"]),
+    status: normalizeDeviceStatus(data.status),
+    last_seen_at: asTimestamp(data.last_seen_at),
+    linked_at: asTimestamp(data.linked_at),
+  };
+}
+
+export function normalizePatientSelf(raw: unknown): PatientSelf | null {
+  const data = asDict(raw);
+  if (!data) return null;
+  const id = asString(data.id) ?? asString(data.patient_id);
+  if (!id) return null;
+  return {
+    id,
+    patient_code: firstString(data, ["patient_code", "code"]) ?? "",
+    display_name: firstString(data, ["display_name", "name"]) ?? "Patient",
+    status: normalizePatientStatus(data.status),
+    latest_record: normalizeAppRecord(data.latest_record),
+    record_count: firstNumber(data, ["record_count"]) ?? 0,
+    device: normalizePortalDevice(data.device),
+  };
+}

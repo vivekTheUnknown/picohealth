@@ -44,12 +44,25 @@ def get_request_meta(request: Request) -> RequestMeta:
 MetaDep = Annotated[RequestMeta, Depends(get_request_meta)]
 
 
-def get_auth_context(request: Request, db: DbDep) -> AuthContext:
-    """Resolve the session cookie into a caller identity.
+def _bearer_token(request: Request) -> str | None:
+    header = request.headers.get("authorization")
+    if not header:
+        return None
+    scheme, _, value = header.partition(" ")
+    if scheme.lower() != "bearer" or not value.strip():
+        return None
+    return value.strip()
 
-    Rejects missing, expired, revoked, and suspended-account sessions alike.
+
+def get_auth_context(request: Request, db: DbDep) -> AuthContext:
+    """Resolve a bearer token or session cookie into a caller identity.
+
+    The mobile app authenticates with `Authorization: Bearer <session token>`.
+    The token is the same opaque, hashed, revocable session value the browser
+    receives in its HttpOnly cookie, so revocation and expiry behave
+    identically for both clients.
     """
-    raw_token = request.cookies.get(settings.session_cookie_name)
+    raw_token = _bearer_token(request) or request.cookies.get(settings.session_cookie_name)
     session = session_service.resolve_session(db, raw_token)
     if session is None:
         raise unauthorized()

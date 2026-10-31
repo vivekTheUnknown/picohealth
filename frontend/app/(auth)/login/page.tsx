@@ -16,13 +16,13 @@ import { Input } from "@/components/forms/inputs";
 import { PasswordInput } from "@/components/forms/password-input";
 
 interface FieldErrors {
-  email?: string;
+  identifier?: string;
   password?: string;
 }
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<ApiError | null>(null);
@@ -43,11 +43,7 @@ export default function LoginPage() {
 
   const validate = (): boolean => {
     const next: FieldErrors = {};
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) next.email = "Enter your email address.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      next.email = "Enter a valid email address.";
-    }
+    if (!identifier.trim()) next.identifier = "Enter your email address or account name.";
     if (!password) next.password = "Enter your password.";
     setFieldErrors(next);
     return Object.keys(next).length === 0;
@@ -60,7 +56,7 @@ export default function LoginPage() {
 
     setPending(true);
     try {
-      const me = await login(email.trim(), password);
+      const me = await login(identifier.trim(), password);
       router.replace(landingPath(me));
     } catch (caught) {
       setError(toApiError(caught));
@@ -95,19 +91,25 @@ export default function LoginPage() {
           </FormBanner>
         ) : null}
 
-        <Field id="login-email" label="Email address" required error={fieldErrors.email}>
+        <Field
+          id="login-identifier"
+          label="Email or account name"
+          required
+          error={fieldErrors.identifier}
+        >
           <Input
-            id="login-email"
-            name="email"
-            type="email"
-            inputMode="email"
+            id="login-identifier"
+            name="identifier"
+            type="text"
             autoComplete="username"
             autoFocus
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            aria-invalid={fieldErrors.email ? true : undefined}
-            aria-describedby={fieldErrors.email ? "login-email-error" : undefined}
-            placeholder="name@organization.example"
+            value={identifier}
+            onChange={(event) => setIdentifier(event.target.value)}
+            aria-invalid={fieldErrors.identifier ? true : undefined}
+            aria-describedby={
+              fieldErrors.identifier ? "login-identifier-error" : undefined
+            }
+            placeholder="name@organization.example or patient name"
           />
         </Field>
 

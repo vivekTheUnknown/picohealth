@@ -36,9 +36,19 @@ ADMIN_PERMISSIONS: frozenset[Permission] = frozenset(
     }
 )
 
+# A patient gets exactly two permissions, both scoped to their own patient
+# record by the patient link. No patient-scoped clinician permission is granted.
+PATIENT_PERMISSIONS: frozenset[Permission] = frozenset(
+    {
+        Permission.PATIENT_SELF_READ,
+        Permission.PATIENT_SELF_WRITE,
+    }
+)
+
 ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.DOCTOR: DOCTOR_PERMISSIONS,
     Role.ADMIN: ADMIN_PERMISSIONS,
+    Role.PATIENT: PATIENT_PERMISSIONS,
 }
 
 

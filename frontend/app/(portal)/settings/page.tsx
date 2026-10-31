@@ -128,7 +128,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <dt className="text-2xs font-medium text-ink-subtle">
-                Doctor verification
+                Clinician verification
               </dt>
               <dd className="mt-1">
                 <VerificationBadge status={me.doctor_verification_status} />

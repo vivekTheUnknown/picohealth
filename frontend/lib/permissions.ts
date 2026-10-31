@@ -14,6 +14,8 @@ export const PERMISSIONS = {
   ALERTS_ACKNOWLEDGE: "alerts:acknowledge",
   ALERTS_RESOLVE: "alerts:resolve",
   CLINICAL_DATA_SUPPORT_READ: "clinical_data:support_read",
+  PATIENT_SELF_READ: "patient_self:read",
+  PATIENT_SELF_WRITE: "patient_self:write",
 } as const satisfies Record<string, Permission>;
 
 /** UI gating only. The API is the authority for every permission. */
@@ -43,8 +45,16 @@ export function isAdmin(me: Pick<Me, "roles"> | null | undefined): boolean {
   return hasRole(me, "admin");
 }
 
-/** Admins land in operations; everyone else lands in the clinical workspace. */
+export function isPatient(me: Pick<Me, "roles"> | null | undefined): boolean {
+  return hasRole(me, "patient");
+}
+
+/**
+ * Patients land in their own record; admins in operations; clinicians in the
+ * clinical workspace. A patient account never lands on a clinician page.
+ */
 export function landingPath(me: Pick<Me, "roles">): string {
+  if (isPatient(me) && !isDoctor(me) && !isAdmin(me)) return "/patient";
   if (isAdmin(me) && !isDoctor(me)) return "/admin/overview";
   return "/overview";
 }

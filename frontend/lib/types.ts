@@ -6,7 +6,7 @@
  * than substituting a guess.
  */
 
-export type Role = "doctor" | "admin";
+export type Role = "doctor" | "admin" | "patient";
 
 export type Permission =
   | "patients:read_assigned"
@@ -21,7 +21,9 @@ export type Permission =
   | "clinical_notes:write"
   | "alerts:acknowledge"
   | "alerts:resolve"
-  | "clinical_data:support_read";
+  | "clinical_data:support_read"
+  | "patient_self:read"
+  | "patient_self:write";
 
 export type UserStatus =
   | "invited"
@@ -97,6 +99,8 @@ export interface Me {
   permissions: Permission[];
   timezone: string;
   doctor_verification_status: VerificationStatus | null;
+  /** Set for patient accounts: the patient record this login owns. */
+  patient_id: string | null;
   last_login_at: string | null;
 }
 
@@ -343,4 +347,64 @@ export interface AdminOverview {
 
 export interface PageMeta {
   total: number | null;
+}
+
+
+/* ------------------------------------------------------- app sync records */
+
+export type OpticalState =
+  | "no_signal"
+  | "signal_present"
+  | "verifying_pulse"
+  | "pulse_likely"
+  | "measurement_valid"
+  | "poor_signal"
+  | "sensor_error"
+  | string;
+
+/**
+ * One processed snapshot synced directly from the phone.
+ *
+ * These are the app's own derived values. The portal does not recompute them;
+ * it displays them with their quality state and algorithm version.
+ */
+export interface AppRecord {
+  id: string;
+  client_record_id: string;
+  patient_id: string | null;
+  device_id: string | null;
+  device_hardware_id: string | null;
+  measured_at: string | null;
+  received_at: string | null;
+  algorithm_version: string | null;
+  signal_quality: OpticalState | null;
+  heart_rate_bpm: number | null;
+  spo2_percent: number | null;
+  temperature_c: number | null;
+  perfusion_index_percent: number | null;
+  prv_rmssd_ms: number | null;
+  prv_beats: number | null;
+  activity_level: string | null;
+  activity_rms_g: number | null;
+  orientation_class: string | null;
+  extra: Record<string, unknown> | null;
+}
+
+export interface PortalDevice {
+  id: string;
+  hardware_identifier: string;
+  firmware_version: string | null;
+  status: DeviceStatus;
+  last_seen_at: string | null;
+  linked_at: string | null;
+}
+
+export interface PatientSelf {
+  id: string;
+  patient_code: string;
+  display_name: string;
+  status: PatientStatus;
+  latest_record: AppRecord | null;
+  record_count: number;
+  device: PortalDevice | null;
 }

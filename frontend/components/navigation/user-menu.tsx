@@ -89,7 +89,17 @@ export function UserMenu({ me }: { me: Me }) {
             {me.display_name}
           </span>
           <span className="block text-2xs leading-tight text-ink-subtle">
-            {me.roles.length > 0 ? me.roles.map((role) => (role === "admin" ? "Administrator" : "Doctor")).join(" · ") : "No role"}
+            {me.roles.length > 0
+              ? me.roles
+                  .map((role) =>
+                    role === "admin"
+                      ? "Administrator"
+                      : role === "patient"
+                        ? "Patient"
+                        : "Doctor",
+                  )
+                  .join(" · ")
+              : "No role"}
           </span>
         </span>
         <ChevronDown className="h-3.5 w-3.5 text-ink-subtle" aria-hidden="true" />

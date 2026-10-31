@@ -104,6 +104,7 @@ export function Field({
   maxLength,
   onBlur,
   onSubmit,
+  secureTextEntry,
 }: {
   label: string;
   value: string;
@@ -117,6 +118,7 @@ export function Field({
   maxLength?: number;
   onBlur?: () => void;
   onSubmit?: () => void;
+  secureTextEntry?: boolean;
 }) {
   const { colors } = useTheme();
   return (
@@ -130,6 +132,7 @@ export function Field({
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
         autoCorrect={false}
+        secureTextEntry={secureTextEntry}
         editable={editable}
         maxLength={maxLength}
         onBlur={onBlur}

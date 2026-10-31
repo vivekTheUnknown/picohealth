@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DbSession
 
 from app.core import audit
@@ -41,19 +41,40 @@ def normalise_email(email: str) -> str:
     return email.strip().lower()
 
 
+def resolve_identifier(db: DbSession, identifier: str) -> User | None:
+    """Resolve an email address or an exact (case-insensitive) display name.
+
+    Display names are not unique by schema, so an ambiguous name resolves to
+    no account rather than guessing which person is signing in.
+    """
+    value = identifier.strip()
+    if not value:
+        return None
+    if "@" in value:
+        return db.scalar(select(User).where(User.email == normalise_email(value)))
+
+    matches = db.scalars(
+        select(User).where(func.lower(User.display_name) == value.lower()).limit(2)
+    ).all()
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
 def authenticate(
     db: DbSession,
     *,
-    email: str,
+    identifier: str,
     password: str,
     ip_address: str | None,
     request_id: str | None,
 ) -> tuple[User, str, str]:
     """Verify credentials and open a session.
 
-    Returns (user, session_token, csrf_token).
+    `identifier` is an email address or an exact display name. Returns
+    (user, session_token, csrf_token).
     """
-    email = normalise_email(email)
+    normalised = identifier.strip()
 
     if not limiter.check(
         "login-ip",
@@ -67,7 +88,7 @@ def authenticate(
             outcome=AuditOutcome.DENIED,
             ip_address=ip_address,
             request_id=request_id,
-            context={"email": email},
+            context={"identifier": normalised[:120]},
         )
         db.commit()
         raise APIError(
@@ -77,7 +98,7 @@ def authenticate(
             retryable=True,
         )
 
-    user = db.scalar(select(User).where(User.email == email))
+    user = resolve_identifier(db, normalised)
 
     # Always run the hash comparison so unknown emails and bad passwords take
     # comparable time.
@@ -94,7 +115,7 @@ def authenticate(
             request_id=request_id,
         )
         db.commit()
-        raise unauthorized("Invalid email or password")
+        raise unauthorized("Invalid credentials")
 
     if user.status == UserStatus.SUSPENDED:
         audit.record(

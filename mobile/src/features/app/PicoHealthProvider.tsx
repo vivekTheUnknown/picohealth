@@ -27,17 +27,28 @@ import {
   parseStoredSettings,
   type Settings,
 } from "@/features/settings/settings";
-import { testBackend, uploadMeasurement, type ConnectionTestResult } from "@/services/api/client";
+import {
+  portalLogin,
+  portalMe,
+  portalSyncRecords,
+} from "@/services/api/portal";
+import {
+  clearPortalSession,
+  loadPortalSession,
+  savePortalSession,
+} from "@/services/portal/session";
 import {
   acknowledgeAlert as acknowledgeAlertRow,
   clearAlerts,
   clearMeasurements,
   countMeasurements,
+  countPendingUploads,
   deleteMeasurementsBefore,
   hasOpenAlert,
   insertAlert,
   insertMeasurement,
   listAlerts,
+  listPendingUploads,
   markUploaded,
 } from "@/services/storage/db";
 import type {
@@ -48,10 +59,28 @@ import type {
 } from "@/types/health";
 import { createId } from "@/utils/format";
 
-export interface UploadStatus {
-  state: "off" | "idle" | "uploading" | "uploaded" | "failed";
+export interface PortalState {
+  /** A patient account is connected and the token is held securely. */
+  connected: boolean;
+  identity: string | null;
+  patientId: string | null;
+  syncing: boolean;
+  pending: number;
+  lastSyncAt: string | null;
   detail: string;
+  error: string | null;
 }
+
+const EMPTY_PORTAL: PortalState = {
+  connected: false,
+  identity: null,
+  patientId: null,
+  syncing: false,
+  pending: 0,
+  lastSyncAt: null,
+  detail: "Not connected. Sign in with your patient account to sync.",
+  error: null,
+};
 
 interface PicoHealthContextValue {
   settings: Settings;
@@ -76,8 +105,13 @@ interface PicoHealthContextValue {
   refreshCount: () => Promise<void>;
   clearAllData: () => Promise<void>;
 
-  uploadStatus: UploadStatus;
-  testConnection: () => Promise<ConnectionTestResult>;
+  portal: PortalState;
+  connectPortal: (
+    identifier: string,
+    password: string,
+  ) => Promise<{ ok: boolean; detail: string }>;
+  disconnectPortal: () => Promise<void>;
+  syncNow: () => Promise<void>;
 }
 
 const PicoHealthContext = createContext<PicoHealthContextValue | null>(null);
@@ -117,17 +151,17 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
   const [series, setSeries] = useState<LivePoint[]>([]);
   const [frameCount, setFrameCount] = useState(0);
   const [now, setNow] = useState(() => Date.now());
-  const [uploadStatus, setUploadStatus] = useState<UploadStatus>({
-    state: "off",
-    detail: "Upload is disabled.",
-  });
+  const [portal, setPortal] = useState<PortalState>(EMPTY_PORTAL);
 
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
   const alertStateRef = useRef<AlertEpisodeState>(initialAlertState());
-  const uploadChainRef = useRef<Promise<void>>(Promise.resolve());
   const previousConnectionRef = useRef<string>("idle");
+  const portalTokenRef = useRef<string | null>(null);
+  const portalBusyRef = useRef(false);
+  const syncRef = useRef<() => Promise<void>>(async () => {});
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshAlerts = useCallback(async () => {
     setAlertsLoading(true);
@@ -141,6 +175,20 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
   const refreshCount = useCallback(async () => {
     setStoredCount(await countMeasurements());
   }, []);
+
+  const updateSettings = useCallback(async (patch: Partial<Settings>) => {
+    const next = normalizeSettings({ ...settingsRef.current, ...patch });
+    // Update the ref synchronously so a follow-up call in the same handler
+    // (for example connect-then-sync) sees the new value.
+    settingsRef.current = next;
+    setSettings(next);
+    try {
+      await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // The in-memory value still applies for this session.
+    }
+  }, []);
+
 
   const persistAlert = useCallback(
     async (candidate: AlertCandidate) => {
@@ -170,26 +218,110 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
     [refreshAlerts],
   );
 
-  const enqueueUpload = useCallback((record: MeasurementRecord) => {
-    uploadChainRef.current = uploadChainRef.current.then(async () => {
-      const current = settingsRef.current;
-      if (!current.uploadEnabled || !current.backendUrl) return;
+  const refreshPending = useCallback(async () => {
+    try {
+      const pending = await countPendingUploads();
+      setPortal((previous) => ({ ...previous, pending }));
+    } catch {
+      // A storage read failure must not break the dashboard.
+    }
+  }, []);
 
-      setUploadStatus({ state: "uploading", detail: "Uploading one sample…" });
-      const result = await uploadMeasurement(record, {
-        baseUrl: current.backendUrl,
-        deviceId: current.deviceName,
-        patientId: current.patientId,
-      });
+  const runSync = useCallback(async () => {
+    const current = settingsRef.current;
+    const token = portalTokenRef.current;
+    if (!token) {
+      setPortal((previous) => ({
+        ...previous,
+        connected: false,
+        detail: "Sign in with your patient account to sync.",
+      }));
+      return;
+    }
+    if (!current.backendUrl) {
+      setPortal((previous) => ({
+        ...previous,
+        detail: "Add the portal URL in Settings.",
+      }));
+      return;
+    }
+    if (!current.uploadEnabled) {
+      setPortal((previous) => ({
+        ...previous,
+        detail: "Sync is off. Turn on “Sync live measurements”.",
+      }));
+      return;
+    }
+    if (portalBusyRef.current) return;
+
+    portalBusyRef.current = true;
+    setPortal((previous) => ({ ...previous, syncing: true, error: null }));
+    try {
+      const records = await listPendingUploads(50);
+      if (records.length === 0) {
+        setPortal((previous) => ({
+          ...previous,
+          syncing: false,
+          pending: 0,
+          detail: "All records are synced.",
+        }));
+        return;
+      }
+
+      const result = await portalSyncRecords(
+        current.backendUrl,
+        token,
+        records,
+        current.deviceName,
+      );
 
       if (result.ok) {
-        await markUploaded(record.id);
-        setUploadStatus({ state: "uploaded", detail: result.detail });
+        for (const record of records) {
+          await markUploaded(record.id);
+        }
+        const pending = await countPendingUploads();
+        setPortal((previous) => ({
+          ...previous,
+          connected: true,
+          syncing: false,
+          pending,
+          lastSyncAt: new Date().toISOString(),
+          detail: result.detail,
+          error: null,
+        }));
+      } else if (result.unauthorized) {
+        portalTokenRef.current = null;
+        await clearPortalSession();
+        const pending = await countPendingUploads();
+        setPortal({
+          ...EMPTY_PORTAL,
+          pending,
+          detail: "The portal session expired. Connect again in Settings.",
+          error: result.detail,
+        });
       } else {
-        setUploadStatus({ state: "failed", detail: result.detail });
+        const pending = await countPendingUploads();
+        setPortal((previous) => ({
+          ...previous,
+          syncing: false,
+          pending,
+          detail: "Sync failed. Records stay queued locally.",
+          error: result.detail,
+        }));
       }
-    });
+    } catch {
+      setPortal((previous) => ({
+        ...previous,
+        syncing: false,
+        detail: "Sync failed. Records stay queued locally.",
+        error: "Could not read or send local records.",
+      }));
+    } finally {
+      portalBusyRef.current = false;
+    }
   }, []);
+
+  syncRef.current = runSync;
 
   const handleFrame = useCallback(
     async (frame: SensorFrame) => {
@@ -212,8 +344,19 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
         // shown and the failure is visible through the stored count.
       }
 
-      if (frame.source === "live" && settingsRef.current.uploadEnabled) {
-        enqueueUpload(record);
+      if (frame.source === "live") {
+        if (settingsRef.current.uploadEnabled && portalTokenRef.current) {
+          setPortal((previous) => ({ ...previous, pending: previous.pending + 1 }));
+          // Batch a few seconds of records per request instead of one call per
+          // frame. The queue is durable, so a failed batch is retried.
+          if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+          syncTimerRef.current = setTimeout(() => {
+            syncTimerRef.current = null;
+            void syncRef.current();
+          }, 4_000);
+        } else {
+          void refreshPending();
+        }
       }
 
       const thresholds = {
@@ -235,7 +378,7 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
         await persistAlert(candidate);
       }
     },
-    [enqueueUpload, persistAlert],
+    [persistAlert, refreshPending],
   );
 
   /**
@@ -285,6 +428,10 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
         activityLevel: snapshot.activityLevel,
         activityRmsG: snapshot.activityRmsG,
         orientationClass: snapshot.orientationClass,
+        rollDeg: snapshot.orientation?.roll ?? null,
+        pitchDeg: snapshot.orientation?.pitch ?? null,
+        yawDeg: snapshot.orientation?.yaw ?? null,
+        lateralG: snapshot.lateralG,
       };
 
       setRawSnapshot(snapshot);
@@ -418,6 +565,62 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Restore the saved portal session and verify it against the API.
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    let cancelled = false;
+    (async () => {
+      const stored = await loadPortalSession();
+      if (!stored || cancelled) return;
+
+      portalTokenRef.current = stored.token;
+      if (stored.portalUrl && stored.portalUrl !== settingsRef.current.backendUrl) {
+        await updateSettings({ backendUrl: stored.portalUrl });
+      }
+
+      const verified = await portalMe(stored.portalUrl, stored.token);
+      if (cancelled) return;
+      if (!verified.ok || !verified.me) {
+        portalTokenRef.current = null;
+        if (verified.unauthorized) await clearPortalSession();
+        setPortal((previous) => ({
+          ...previous,
+          connected: false,
+          detail: verified.unauthorized
+            ? "The portal session expired. Connect again in Settings."
+            : "Could not verify the saved portal session.",
+          error: verified.detail,
+        }));
+        return;
+      }
+
+      setPortal((previous) => ({
+        ...previous,
+        connected: true,
+        identity: verified.me!.display_name,
+        patientId: verified.me!.patient_id,
+        detail: `Connected as ${verified.me!.display_name}.`,
+      }));
+      void syncRef.current();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [settingsLoaded, updateSettings]);
+
+  // Retry queued records while the app is open. Offline failures are harmless:
+  // the rows stay marked unsynced and are retried next time.
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    void refreshPending();
+    const timer = setInterval(() => {
+      if (settingsRef.current.uploadEnabled && portalTokenRef.current) {
+        void syncRef.current();
+      }
+    }, 20_000);
+    return () => clearInterval(timer);
+  }, [settingsLoaded, refreshPending]);
+
   useEffect(() => {
     if (!settingsLoaded) return;
     void refreshAlerts();
@@ -425,24 +628,6 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
     const cutoff = Date.now() - settings.retentionDays * 24 * 60 * 60 * 1000;
     void deleteMeasurementsBefore(cutoff).then(() => refreshCount());
   }, [settingsLoaded, settings.retentionDays, refreshAlerts, refreshCount]);
-
-  useEffect(() => {
-    if (!settings.uploadEnabled) {
-      setUploadStatus({ state: "off", detail: "Upload is disabled." });
-    } else {
-      setUploadStatus({ state: "idle", detail: "Waiting for a live sample." });
-    }
-  }, [settings.uploadEnabled, settings.backendUrl]);
-
-  const updateSettings = useCallback(async (patch: Partial<Settings>) => {
-    const next = normalizeSettings({ ...settingsRef.current, ...patch });
-    setSettings(next);
-    try {
-      await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // The in-memory value still applies for this session.
-    }
-  }, []);
 
   const acknowledgeAlert = useCallback(
     async (id: string) => {
@@ -462,15 +647,75 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
     await Promise.all([refreshAlerts(), refreshCount()]);
   }, [refreshAlerts, refreshCount]);
 
-  const testConnection = useCallback(async () => {
-    const result = await testBackend(settingsRef.current.backendUrl);
-    if (result.ok) {
-      setUploadStatus({ state: "idle", detail: result.detail });
-    } else {
-      setUploadStatus({ state: "failed", detail: result.detail });
-    }
-    return result;
-  }, []);
+  const connectPortal = useCallback(
+    async (identifier: string, password: string) => {
+      const current = settingsRef.current;
+      if (!current.backendUrl) {
+        return { ok: false, detail: "Enter the portal URL first." };
+      }
+
+      setPortal((previous) => ({ ...previous, detail: "Connecting…", error: null }));
+      const result = await portalLogin(current.backendUrl, identifier, password);
+      if (!result.ok || !result.token || !result.me) {
+        setPortal((previous) => ({
+          ...previous,
+          connected: false,
+          detail: "Not connected.",
+          error: result.detail,
+        }));
+        return { ok: false, detail: result.detail };
+      }
+      if (!result.me.roles.includes("patient")) {
+        const detail = "This account is not a patient account.";
+        setPortal((previous) => ({
+          ...previous,
+          connected: false,
+          detail: "Not connected.",
+          error: detail,
+        }));
+        return { ok: false, detail };
+      }
+
+      portalTokenRef.current = result.token;
+      try {
+        await savePortalSession({
+          portalUrl: current.backendUrl,
+          token: result.token,
+          identity: result.me.display_name,
+          patientId: result.me.patient_id,
+        });
+      } catch (error) {
+        return {
+          ok: false,
+          detail:
+            error instanceof Error ? error.message : "Could not store the session.",
+        };
+      }
+
+      await updateSettings({
+        portalIdentifier: identifier.trim(),
+        uploadEnabled: true,
+      });
+      setPortal((previous) => ({
+        ...previous,
+        connected: true,
+        identity: result.me!.display_name,
+        patientId: result.me!.patient_id,
+        detail: `Connected as ${result.me!.display_name}.`,
+        error: null,
+      }));
+      void syncRef.current();
+      return { ok: true, detail: `Connected as ${result.me.display_name}.` };
+    },
+    [updateSettings],
+  );
+
+  const disconnectPortal = useCallback(async () => {
+    portalTokenRef.current = null;
+    await clearPortalSession();
+    await updateSettings({ uploadEnabled: false });
+    setPortal({ ...EMPTY_PORTAL, pending: await countPendingUploads() });
+  }, [updateSettings]);
 
   const value = useMemo<PicoHealthContextValue>(
     () => ({
@@ -491,8 +736,10 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
       storedCount,
       refreshCount,
       clearAllData,
-      uploadStatus,
-      testConnection,
+      portal,
+      connectPortal,
+      disconnectPortal,
+      syncNow: runSync,
     }),
     [
       settings,
@@ -512,9 +759,18 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
       storedCount,
       refreshCount,
       clearAllData,
-      uploadStatus,
-      testConnection,
+      portal,
+      connectPortal,
+      disconnectPortal,
+      runSync,
     ],
+  );
+
+  useEffect(
+    () => () => {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    },
+    [],
   );
 
   return <PicoHealthContext.Provider value={value}>{children}</PicoHealthContext.Provider>;

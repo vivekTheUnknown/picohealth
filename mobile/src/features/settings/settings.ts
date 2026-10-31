@@ -7,6 +7,7 @@ export interface Settings {
   deviceName: string;
   autoReconnect: boolean;
   staleAfterMs: number;
+  /** Portal base URL, e.g. http://192.168.1.20:8000. */
   backendUrl: string;
   uploadEnabled: boolean;
   retentionDays: number;
@@ -14,24 +15,31 @@ export interface Settings {
   opticalMaxCount: number;
   temperatureMinC: number;
   temperatureMaxC: number;
-  /** Demo backend patient id; there is no account system in this prototype. */
-  patientId: number;
+  /** Last account name used to connect to the portal (never the password). */
+  portalIdentifier: string;
 }
 
 export const SETTINGS_STORAGE_KEY = "picohealth.settings.v1";
+
+/**
+ * Build-time defaults for the development portal. Release builds leave both
+ * empty and the user enters them in Settings.
+ */
+const DEFAULT_PORTAL_URL = process.env.EXPO_PUBLIC_PORTAL_URL ?? "";
+const DEFAULT_PORTAL_IDENTIFIER = process.env.EXPO_PUBLIC_PORTAL_IDENTIFIER ?? "";
 
 export const DEFAULT_SETTINGS: Settings = {
   deviceName: "PicoHealth-DEV",
   autoReconnect: true,
   staleAfterMs: DEFAULT_STALE_AFTER_MS,
-  backendUrl: "",
+  backendUrl: DEFAULT_PORTAL_URL,
   uploadEnabled: false, // opt-in, per §9 and §12
   retentionDays: 30,
   demoMode: false,
   opticalMaxCount: 250000,
   temperatureMinC: 15,
   temperatureMaxC: 40,
-  patientId: 1,
+  portalIdentifier: DEFAULT_PORTAL_IDENTIFIER,
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -125,7 +133,10 @@ export function normalizeSettings(raw: unknown): Settings {
     ),
     temperatureMinC: Math.min(min, max),
     temperatureMaxC: Math.max(min, max),
-    patientId: asInt(source.patientId, DEFAULT_SETTINGS.patientId, 1, 1_000_000),
+    portalIdentifier:
+      typeof source.portalIdentifier === "string"
+        ? source.portalIdentifier.trim().slice(0, 320)
+        : DEFAULT_SETTINGS.portalIdentifier,
   };
 }
 
@@ -148,7 +159,7 @@ const storedSettingsSchema = z
     opticalMaxCount: z.number().optional(),
     temperatureMinC: z.number().optional(),
     temperatureMaxC: z.number().optional(),
-    patientId: z.number().optional(),
+    portalIdentifier: z.string().max(320).optional(),
   })
   .passthrough();
 

@@ -19,12 +19,13 @@ import { PermissionDenied } from "@/components/status/permission-denied";
 import { DataFreshness } from "@/components/status/data-freshness";
 import { DeviceStatusBadge } from "@/components/status/device-status-badge";
 import { Tabs, type TabItem } from "@/components/navigation/tabs";
+import { AppRecordsTab } from "@/components/clinical/app-records-tab";
 import { MeasurementsPanel } from "@/components/clinical/measurements-panel";
 import { TrendsPanel } from "@/components/clinical/trends-panel";
 import { PatientEventsPanel } from "@/components/clinical/patient-events-panel";
 import { NotesPanel } from "@/components/clinical/notes-panel";
 
-type TabId = "measurements" | "trends" | "events" | "notes";
+type TabId = "measurements" | "app" | "trends" | "events" | "notes";
 
 const TAB_PANEL_ID = "patient-workspace-panel";
 
@@ -123,6 +124,7 @@ export default function PatientWorkspacePage() {
 
   const tabs: TabItem[] = [
     { id: "measurements", label: "Measurements", count: data.measurements.length || null },
+    { id: "app", label: "App data" },
     { id: "trends", label: "Trends" },
     {
       id: "events",
@@ -255,6 +257,9 @@ export default function PatientWorkspacePage() {
         >
           {tab === "measurements" ? (
             <MeasurementsPanel patientId={patientId} overview={data} timeZone={timeZone} />
+          ) : null}
+          {tab === "app" ? (
+            <AppRecordsTab patientId={patientId} timeZone={timeZone} />
           ) : null}
           {tab === "trends" ? (
             <TrendsPanel patientId={patientId} overview={data} timeZone={timeZone} />

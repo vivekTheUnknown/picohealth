@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Response, status
 
-from app.core.authz import AuthContext
+from app.core.authz import AuthContext, patient_id_for_user
+from app.core.config import settings
 from app.core.cookies import clear_session_cookies, set_session_cookies
 from app.core.deps import AuthDep, DbDep, MetaDep
 from app.modules.auth import service
@@ -20,12 +21,13 @@ from app.modules.auth.schemas import (
     PermissionsResponse,
     RecoverRequest,
     ResetRequest,
+    TokenResponse,
 )
 
 router = APIRouter(tags=["auth"])
 
 
-def to_me(ctx: AuthContext) -> MeResponse:
+def to_me(ctx: AuthContext, db: DbDep) -> MeResponse:
     user = ctx.user
     profile = user.doctor_profile
     return MeResponse(
@@ -37,6 +39,7 @@ def to_me(ctx: AuthContext) -> MeResponse:
         permissions=sorted(ctx.permissions, key=lambda p: p.value),
         timezone=user.timezone,
         doctor_verification_status=profile.verification_status if profile else None,
+        patient_id=patient_id_for_user(db, user.id),
         last_login_at=user.last_login_at,
     )
 
@@ -50,7 +53,7 @@ def login(
 ) -> MeResponse:
     user, session_token, csrf_token = service.authenticate(
         db,
-        email=payload.email,
+        identifier=payload.login_identifier,
         password=payload.password,
         ip_address=meta.ip_address,
         request_id=meta.request_id,
@@ -72,7 +75,47 @@ def login(
         doctor_verification_status=(
             user.doctor_profile.verification_status if user.doctor_profile else None
         ),
+        patient_id=patient_id_for_user(db, user.id),
         last_login_at=user.last_login_at,
+    )
+
+
+@router.post("/auth/token", response_model=TokenResponse)
+def issue_token(payload: LoginRequest, db: DbDep, meta: MetaDep) -> TokenResponse:
+    """Issue a bearer token for the mobile app.
+
+    No cookies are set: the app stores the token and sends it in the
+    Authorization header. The underlying session is revocable like any other.
+    """
+    user, session_token, _csrf = service.authenticate(
+        db,
+        identifier=payload.login_identifier,
+        password=payload.password,
+        ip_address=meta.ip_address,
+        request_id=meta.request_id,
+    )
+
+    from app.core.permissions import effective_permissions
+
+    roles = user.active_roles()
+    me = MeResponse(
+        id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        status=user.status,
+        roles=sorted(roles, key=lambda r: r.value),
+        permissions=sorted(effective_permissions(db, user), key=lambda p: p.value),
+        timezone=user.timezone,
+        doctor_verification_status=(
+            user.doctor_profile.verification_status if user.doctor_profile else None
+        ),
+        patient_id=patient_id_for_user(db, user.id),
+        last_login_at=user.last_login_at,
+    )
+    return TokenResponse(
+        access_token=session_token,
+        expires_in=settings.session_idle_timeout_minutes * 60,
+        me=me,
     )
 
 
@@ -137,8 +180,8 @@ def change_password(
 
 
 @router.get("/me", response_model=MeResponse)
-def me(ctx: AuthDep) -> MeResponse:
-    return to_me(ctx)
+def me(ctx: AuthDep, db: DbDep) -> MeResponse:
+    return to_me(ctx, db)
 
 
 @router.get("/me/permissions", response_model=PermissionsResponse)

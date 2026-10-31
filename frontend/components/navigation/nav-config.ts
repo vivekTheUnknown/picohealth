@@ -13,7 +13,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { hasAnyPermission, hasPermission, isAdmin, isDoctor } from "@/lib/permissions";
+import {
+  hasAnyPermission,
+  hasPermission,
+  isAdmin,
+  isDoctor,
+  isPatient,
+} from "@/lib/permissions";
 import type { Me } from "@/lib/types";
 
 export interface NavItem {
@@ -33,6 +39,23 @@ export interface NavSection {
  * authorizes every page and every action.
  */
 const SECTIONS: NavSection[] = [
+  {
+    title: "My health",
+    items: [
+      {
+        href: "/patient",
+        label: "Overview",
+        icon: LayoutDashboard,
+        visible: (me) => isPatient(me),
+      },
+      {
+        href: "/patient/records",
+        label: "Readings",
+        icon: ClipboardList,
+        visible: (me) => isPatient(me),
+      },
+    ],
+  },
   {
     title: "Clinical",
     items: [

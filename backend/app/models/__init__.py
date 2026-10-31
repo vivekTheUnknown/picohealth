@@ -3,6 +3,7 @@
 from app.models.base import Base
 from app.models.clinical import (
     AlertTransition,
+    AppMeasurementRecord,
     ClinicalNote,
     Event,
     MeasurementSummary,
@@ -13,6 +14,7 @@ from app.models.identity import (
     DoctorProfile,
     Invitation,
     PasswordResetToken,
+    PatientProfile,
     Session,
     User,
     UserPermissionGrant,
@@ -26,6 +28,7 @@ from app.models.patients import (
 
 __all__ = [
     "AlertTransition",
+    "AppMeasurementRecord",
     "AuditEvent",
     "Base",
     "ClinicalNote",
@@ -39,6 +42,7 @@ __all__ = [
     "PasswordResetToken",
     "Patient",
     "PatientDevice",
+    "PatientProfile",
     "Session",
     "User",
     "UserPermissionGrant",

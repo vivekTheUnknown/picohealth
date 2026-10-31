@@ -6,6 +6,7 @@
 import { api, ApiError } from "@/lib/api-client";
 import {
   normalizeAdminOverview,
+  normalizeAppRecordList,
   normalizeAssignment,
   normalizeAssignmentList,
   normalizeAuditList,
@@ -18,6 +19,8 @@ import {
   normalizeNoteList,
   normalizePatientList,
   normalizePatientOverview,
+  normalizePatientSelf,
+  normalizePortalDevice,
   normalizeSystemHealth,
   normalizeUserList,
   normalizeDevice,
@@ -25,6 +28,7 @@ import {
 } from "@/lib/normalize";
 import type {
   AdminOverview,
+  AppRecord,
   Assignment,
   AuditEvent,
   ClinicalNote,
@@ -35,7 +39,9 @@ import type {
   Me,
   Measurement,
   PatientOverview,
+  PatientSelf,
   PatientSummary,
+  PortalDevice,
   PortalUser,
   Role,
   SystemHealth,
@@ -46,10 +52,10 @@ const API = "/api/v1";
 
 /* ------------------------------------------------------------------ auth */
 
-export async function login(email: string, password: string): Promise<Me> {
+export async function login(identifier: string, password: string): Promise<Me> {
   const raw = await api.post<unknown>(
     `${API}/auth/login`,
-    { email, password },
+    { identifier, password },
     { redirectOnUnauthorized: false },
   );
   return normalizeMe(raw);
@@ -112,6 +118,43 @@ function messageFrom(raw: unknown, fallback: string): string {
     if (typeof message === "string" && message.trim()) return message;
   }
   return fallback;
+}
+
+/* ---------------------------------------------------------------- patient */
+
+export async function getPatientSelf(signal?: AbortSignal): Promise<PatientSelf> {
+  const raw = await api.get<unknown>(`${API}/patient/me`, { signal });
+  const self = normalizePatientSelf(raw);
+  if (!self) throw new ApiError(502, "invalid_response", "The patient record could not be read.");
+  return self;
+}
+
+export async function getPatientRecords(signal?: AbortSignal): Promise<AppRecord[]> {
+  const raw = await api.get<unknown>(`${API}/patient/records`, {
+    signal,
+    query: { limit: 2000 },
+  });
+  return normalizeAppRecordList(raw);
+}
+
+export async function getPatientDevices(signal?: AbortSignal): Promise<PortalDevice[]> {
+  const raw = await api.get<unknown>(`${API}/patient/devices`, { signal });
+  const list = Array.isArray(raw) ? raw : [];
+  return list
+    .map((entry) => normalizePortalDevice(entry))
+    .filter((entry): entry is PortalDevice => entry !== null);
+}
+
+/** Clinician view: processed app records for an assigned patient. */
+export async function getAppRecords(
+  patientId: string,
+  signal?: AbortSignal,
+): Promise<AppRecord[]> {
+  const raw = await api.get<unknown>(
+    `${API}/patients/${encodeURIComponent(patientId)}/records`,
+    { signal, query: { limit: 2000 } },
+  );
+  return normalizeAppRecordList(raw);
 }
 
 /* --------------------------------------------------------------- clinical */

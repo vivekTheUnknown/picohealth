@@ -11,6 +11,7 @@ from enum import StrEnum
 class Role(StrEnum):
     DOCTOR = "doctor"
     ADMIN = "admin"
+    PATIENT = "patient"
 
 
 class Permission(StrEnum):
@@ -34,6 +35,9 @@ class Permission(StrEnum):
     ALERTS_RESOLVE = "alerts:resolve"
     # Deliberately narrow admin ability to view clinical content.
     CLINICAL_DATA_SUPPORT_READ = "clinical_data:support_read"
+    # Patient self-service. A patient can only ever reach their own record.
+    PATIENT_SELF_READ = "patient_self:read"
+    PATIENT_SELF_WRITE = "patient_self:write"
 
 
 class UserStatus(StrEnum):

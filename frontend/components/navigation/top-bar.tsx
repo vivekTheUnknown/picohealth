@@ -21,7 +21,11 @@ export interface TopBarProps {
  */
 export function TopBar({ me, navOpen, onOpenNav }: TopBarProps) {
   const pathname = usePathname();
-  const workspace = pathname.startsWith("/admin") ? "Operations" : "Clinical";
+  const workspace = pathname.startsWith("/admin")
+    ? "Operations"
+    : pathname === "/patient" || pathname.startsWith("/patient/")
+      ? "My health"
+      : "Clinical";
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/85">

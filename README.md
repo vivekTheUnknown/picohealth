@@ -21,6 +21,7 @@ backend/                     FastAPI API, SQLAlchemy models, Alembic migrations,
 frontend/                    Next.js portal (App Router, TypeScript, Tailwind)
 mobile/                      React Native + Expo Android app (PicoHealth)
 docs/ble-protocol.md         BLE frame format implemented by firmware and app
+docs/app-portal-sync.md      app→portal auth, ingestion contract and metric list
 pico_w_ble_wearable_starter/ original Pico W firmware, demo FastAPI, Flutter starter
 ```
 
@@ -49,19 +50,26 @@ npm run dev
 
 Sign in with a seeded account:
 
-| role   | email                  | password               |
-|--------|------------------------|------------------------|
-| admin  | admin@example.com      | dev-password-change-me |
-| doctor | doctor@example.com     | dev-password-change-me |
+| role    | sign-in                 | password               |
+|---------|-------------------------|------------------------|
+| admin   | admin@example.com       | dev-password-change-me |
+| doctor  | doctor@example.com      | dev-password-change-me |
+| patient | kode vivek sai          | kodeviveksai           |
 
-`unassigned@example.com` is a doctor with no patients — useful for confirming
-that access control, not just navigation, is doing the work.
+Sign-in accepts an email address **or** an exact account name, so the patient
+can use `kode vivek sai`. The patient account is linked to the single patient
+record `PT-KVS-0001`; the doctor is assigned to it. No patients, devices,
+measurements or events are seeded — clinical data only appears when the app
+syncs it.
+
+The phone syncs directly to the portal API. See `docs/app-portal-sync.md` for
+the token flow, ingestion contract and the full metric list.
 
 ## Android companion app (PicoHealth)
 
 A React Native + Expo app for the Pico W wearable. It connects over BLE,
 reassembles the firmware's binary frames, stores accepted samples in SQLite, and
-can optionally upload them to the demo FastAPI.
+can sync its processed records directly to the portal with a patient account.
 
 ```bash
 cd mobile
@@ -83,7 +91,8 @@ Honesty rules enforced by the app:
   `null`, never zero.
 - Gap detection is explicit; history is never interpolated.
 - Stale data is labelled with its last-received time, not shown as current.
-- Upload is off by default and never sends demo samples.
+- Sync is off until the patient connects an account, and demo samples are never
+  sent.
 - The app includes a Live tab (temperature, HR, SpO₂, orientation, lateral
   acceleration) and a persisted System/Light/Dark theme.
 - App-side derived metrics: perfusion index, PPG-derived PRV (RMSSD),
@@ -91,10 +100,8 @@ Honesty rules enforced by the app:
   contact/pulse quality state machine. Every record carries an algorithm
   version.
 
-Verified on this machine: 111 unit tests, TypeScript, Expo Doctor 20/20, an
-Android Metro bundle, and a generated manifest with
-`BLUETOOTH_SCAN` + `neverForLocation`. Not verified: the native build, a real
-BLE session, and on-device SQLite — no Android SDK, phone, or Pico was attached.
+Verified on a moto g34 5G against the real Pico: BLE session, on-device SQLite,
+the quality state machine, and direct sync into the portal.
 
 ## Core design decisions
 
