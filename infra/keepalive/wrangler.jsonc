@@ -4,7 +4,7 @@
   "main": "worker.js",
   "compatibility_date": "2026-10-30",
   "triggers": {
-    "crons": ["*/5 * * * *"]
+    "crons": ["*/3 * * * *"]
   },
   "vars": {
     "API_URL": "https://picohealth-api-sg.onrender.com"
