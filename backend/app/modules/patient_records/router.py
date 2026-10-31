@@ -44,7 +44,10 @@ class AppRecordIn(BaseModel):
     heart_rate_bpm: float | None = Field(default=None, ge=0, le=300)
     spo2_percent: float | None = Field(default=None, ge=0, le=100)
     temperature_c: float | None = Field(default=None, ge=-40, le=85)
-    perfusion_index_percent: float | None = Field(default=None, ge=0, le=100)
+    # PI is 100 x AC/DC. It can exceed 100 on a weak, noisy contact, and the
+    # phone is the authority on what it computed; store it rather than reject
+    # the whole batch.
+    perfusion_index_percent: float | None = Field(default=None, ge=0, le=10_000)
     prv_rmssd_ms: float | None = Field(default=None, ge=0, le=5000)
     prv_beats: int | None = Field(default=None, ge=0, le=1000)
     activity_level: str | None = Field(default=None, max_length=40)

@@ -5,10 +5,11 @@ from __future__ import annotations
 import logging
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.core.errors import APIError, api_error_handler
+from app.core.errors import APIError, api_error_handler, request_validation_handler
 from app.core.middleware import CSRFMiddleware, RequestContextMiddleware
 from app.modules.assignments.router import router as assignments_router
 from app.modules.audit.router import router as audit_router
@@ -52,6 +53,7 @@ def create_app() -> FastAPI:
         )
 
     app.add_exception_handler(APIError, api_error_handler)
+    app.add_exception_handler(RequestValidationError, request_validation_handler)
 
     app.include_router(health_router)
 

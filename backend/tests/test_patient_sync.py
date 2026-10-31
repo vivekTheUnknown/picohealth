@@ -254,3 +254,19 @@ def test_device_cannot_be_claimed_by_two_patients(client, db):
     )
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "device_in_use"
+
+
+def test_high_perfusion_index_is_accepted(client, db):
+    """A weak contact can produce PI > 100; the app's value must not 422."""
+    user, _patient = make_patient_account(db)
+    token = bearer(client, user.display_name)
+    response = client.post(
+        "/api/v1/patient/records",
+        json={"records": [record_payload("m-high-pi", perfusion_index_percent=421.5)]},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 201, response.text
+    rows = client.get(
+        "/api/v1/patient/records", headers={"Authorization": f"Bearer {token}"}
+    ).json()
+    assert rows[0]["perfusion_index_percent"] == 421.5

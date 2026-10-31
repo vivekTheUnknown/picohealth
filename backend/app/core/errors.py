@@ -5,8 +5,13 @@ Responses carry a stable machine code and a human message; never a stack trace.
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+
+logger = logging.getLogger("app.validation")
 
 
 class APIError(Exception):
@@ -49,6 +54,35 @@ async def api_error_handler(_request: Request, exc: APIError) -> JSONResponse:
                 "code": exc.code,
                 "message": exc.message,
                 "retryable": exc.retryable,
+            }
+        },
+    )
+
+
+async def request_validation_handler(
+    _request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Turn FastAPI's validation list into the portal's error envelope.
+
+    The mobile app displays `error.message`, so a schema mismatch must name the
+    offending field instead of leaving the user with a bare HTTP 422.
+    """
+    parts: list[str] = []
+    for error in exc.errors()[:5]:
+        location = ".".join(
+            str(part) for part in error.get("loc", ()) if part not in ("body", "query")
+        )
+        message = str(error.get("msg", "invalid value"))
+        parts.append(f"{location}: {message}" if location else message)
+    detail = "; ".join(parts) or "The request did not match the API schema"
+    logger.warning("request validation failed: %s", detail)
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": {
+                "code": "validation_error",
+                "message": detail,
+                "retryable": False,
             }
         },
     )
