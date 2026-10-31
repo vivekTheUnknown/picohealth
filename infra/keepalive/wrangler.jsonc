@@ -7,6 +7,6 @@
     "crons": ["*/5 * * * *"]
   },
   "vars": {
-    "API_URL": "https://picohealth-api.onrender.com"
+    "API_URL": "https://picohealth-api-sg.onrender.com"
   }
 }

@@ -132,7 +132,7 @@ export async function getPatientSelf(signal?: AbortSignal): Promise<PatientSelf>
 export async function getPatientRecords(signal?: AbortSignal): Promise<AppRecord[]> {
   const raw = await api.get<unknown>(`${API}/patient/records`, {
     signal,
-    query: { limit: 500 },
+    query: { limit: 200 },
   });
   return normalizeAppRecordList(raw);
 }
@@ -152,7 +152,7 @@ export async function getAppRecords(
 ): Promise<AppRecord[]> {
   const raw = await api.get<unknown>(
     `${API}/patients/${encodeURIComponent(patientId)}/records`,
-    { signal, query: { limit: 500 } },
+    { signal, query: { limit: 200 } },
   );
   return normalizeAppRecordList(raw);
 }

@@ -14,6 +14,6 @@
   // Set the real Render URL at deploy time:
   //   wrangler deploy --var API_PROXY_TARGET:https://....onrender.com
   "vars": {
-    "API_PROXY_TARGET": "https://picohealth-api.onrender.com"
+    "API_PROXY_TARGET": "https://picohealth-api-sg.onrender.com"
   }
 }
