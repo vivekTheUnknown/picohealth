@@ -31,7 +31,7 @@ describe("toPortalRecord", () => {
         activityLevel: "still",
         activityRmsG: 0.006,
         orientationClass: "face_down",
-        algorithmVersion: "max3010x-app-v2",
+        algorithmVersion: "max3010x-app-v3",
         rollDeg: -1.2,
         pitchDeg: 0.6,
         yawDeg: 4,
@@ -52,7 +52,7 @@ describe("toPortalRecord", () => {
     expect(payload.activity_rms_g).toBe(0.006);
     expect(payload.orientation_class).toBe("face_down");
     expect(payload.signal_quality).toBe("measurement_valid");
-    expect(payload.algorithm_version).toBe("max3010x-app-v2");
+    expect(payload.algorithm_version).toBe("max3010x-app-v3");
     expect(payload.extra.roll_deg).toBe(-1.2);
     expect(payload.extra.pitch_deg).toBe(0.6);
     expect(payload.extra.yaw_deg).toBe(4);

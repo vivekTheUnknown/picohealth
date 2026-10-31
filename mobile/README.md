@@ -12,12 +12,12 @@ Four tabs: **Dashboard**, **History**, **Alerts**, **Settings**.
   subscribes to notifications.
 - Receives **raw** sensor data (protocol v3), reassembles it, and performs all
   conversion and signal processing on the phone: LM75A register → °C, IMU axes
-  → g / °/s, and MAX30102 red/IR batches → heart rate and SpO₂ via the
-  Maxim/SparkFun algorithm. Legacy v2 JSON and v1 binary frames are still
+  → g / °/s, and MAX30102 red/IR batches → heart rate and SpO₂ via an
+  adaptive PPG detector. Legacy v2 JSON and v1 binary frames are still
   accepted.
 - Shows raw optical counts plus app-derived HR/SpO₂, with explicit
   `collecting`, `no_contact`, `poor_signal` and `valid` states. The pulse card
-  withholds values until a 4 s window passes quality checks.
+  withholds values until a 4–10 s window passes quality checks.
 - Converts temperature and IMU in the app, gated on the observed chip identity
   (LM75A address/conversion; IMU `WHO_AM_I`). Badges say “Driver verified”,
   never “clinically validated”.
@@ -173,8 +173,8 @@ formulas and gates are fixed here so history stays comparable across builds.
 
 | Metric | Definition | Gate |
 |---|---|---|
-| Perfusion index (PI) | `100 × AC_IR / DC_IR` over the 4 s window | optical signal present |
-| PRV (RMSSD) | Root mean square of successive beat-interval differences, PPG-derived | ≥30 accepted intervals, contact, no clipping/motion |
+| Perfusion index (PI) | `100 × AC_IR / DC_IR` over the analysis window (4–10 s) | optical signal present |
+| PRV (RMSSD) | Root mean square of successive beat-interval differences, PPG-derived | ≥12 accepted intervals, contact, no clipping/motion |
 | Temperature trend | Delta, rate/min and average over a 5 min window | ≥2 decoded samples |
 | Movement intensity | RMS of gravity-removed acceleration over 5 s: still <0.03 g, light <0.12, moderate <0.3, high ≥0.3 | IMU valid |
 | Device orientation | Dominant gravity axis: face_up / face_down / edge_x / edge_y | IMU valid |
@@ -183,7 +183,7 @@ formulas and gates are fixed here so history stays comparable across builds.
 
 PRV is **PPG-derived**, not ECG HRV. Activity thresholds are uncalibrated for a
 wearing position, and orientation is the device's orientation, not body posture.
-The algorithm version (`max3010x-app-v2`) is stored with every record.
+The algorithm version (`max3010x-app-v3`) is stored with every record.
 
 ### Optical state machine
 
@@ -256,7 +256,7 @@ Tests cover the parts where a mistake would make the app lie:
 | Payload | unavailable and unvalidated values become `null`; a genuine `0` is still sent |
 | Settings | clamping, URL policy, sync cannot be enabled without a connected patient account, corrupt storage rejected |
 | Presentation | no heart-rate/SpO₂ claims from raw counts; `--` instead of zero |
-| MAX30102 | 25 Hz resampling, 4 s window, reference algorithm, valid/invalid synthesis cases |
+| MAX30102 | 25 Hz resampling, 4–10 s window, adaptive peaks + autocorrelation, weak/noisy synthesis cases |
 | Raw protocol | JSON messages, binary batches, malformed/truncated input |
 | Temperature / IMU | LM75A two's complement, identity-gated scaling, gyro bias |
 

@@ -242,7 +242,7 @@ export default function LiveScreen() {
             />
             <Text style={[styles.note, { color: colors.textSubtle }]}>
               PI is 100 × AC/DC on the IR channel. PRV is PPG-derived RMSSD, not ECG
-              HRV, and needs at least 30 accepted beats. Activity thresholds are
+              HRV, and needs at least 12 accepted beats. Activity thresholds are
               uncalibrated for wearing position.
             </Text>
           </Card>

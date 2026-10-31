@@ -29,7 +29,7 @@ export function opticalStateView(state: string | null): {
       return {
         label: "Measuring",
         tone: "info",
-        detail: "Collecting a 4-second window of paired red/IR samples.",
+        detail: "Collecting a 4–10 second window of paired red/IR samples.",
       };
     case "no_signal":
       return {

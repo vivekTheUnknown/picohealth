@@ -264,7 +264,7 @@ export default function DashboardScreen() {
                     : "--"}
                 </Text>
                 <Text style={[styles.derivedHint, { color: colors.textSubtle }]}>
-                  {frame.prvBeats ? `${frame.prvBeats} beats` : "needs 30 beats"}
+                  {frame.prvBeats ? `${frame.prvBeats} beats` : "needs 12 beats"}
                 </Text>
               </View>
             </View>
@@ -274,7 +274,7 @@ export default function DashboardScreen() {
             </Text>
             <Text style={[styles.technical, { color: colors.textSubtle }]}>
               Derived in the app from raw MAX30102 red/IR samples using the
-              Maxim ratio-of-ratios algorithm. Not clinically calibrated.
+              adaptive PPG detector. Not clinically calibrated.
             </Text>
           </Card>
 

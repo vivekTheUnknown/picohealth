@@ -44,7 +44,7 @@ A patient account can reach exactly one patient record: the one in
       "client_record_id": "m_mvvsx9xi_3y",
       "measured_at": "2026-10-31T02:48:15.750Z",
       "device_hardware_id": "PicoHealth-DEV",
-      "algorithm_version": "max3010x-app-v2",
+      "algorithm_version": "max3010x-app-v3",
       "signal_quality": "measurement_valid",
       "heart_rate_bpm": 72,
       "spo2_percent": 97,

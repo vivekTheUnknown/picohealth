@@ -51,7 +51,7 @@ describe("Max30102Processor", () => {
     expect(result.heartRateValid).toBe(true);
     expect(result.heartRateBpm).not.toBeNull();
     expect(Math.abs((result.heartRateBpm ?? 0) - 72)).toBeLessThanOrEqual(6);
-    expect(result.windowSamples).toBe(100);
+    expect(result.windowSamples).toBeGreaterThanOrEqual(100);
   });
 
   it("reports no_contact when the optical DC level is too low", () => {
@@ -137,7 +137,7 @@ describe("derived optical metrics", () => {
   it("keeps the algorithm version on every result", () => {
     const processor = new Max30102Processor();
     const result = processor.addBatch(batch(0));
-    expect(result.algorithmVersion).toBe("max3010x-app-v2");
+    expect(result.algorithmVersion).toBe("max3010x-app-v3");
   });
 });
 
@@ -182,5 +182,61 @@ describe("pulse consistency gates", () => {
     expect(result.state).toBe("poor_signal");
     expect(result.heartRateValid).toBe(false);
     expect(result.spo2Valid).toBe(false);
+  });
+});
+
+describe("sensitive PPG detection", () => {
+  it("detects a weak 30-count pulse on a 70k DC level", () => {
+    const processor = new Max30102Processor();
+    let result = processor.addBatch(batch(0, { dc: 70000, ac: 30 }));
+    for (let second = 1; second <= 10; second += 1) {
+      result = processor.addBatch(batch(second * 1000, { dc: 70000, ac: 30 }));
+    }
+    expect(result.opticalSignalPresent).toBe(true);
+    expect(result.pulseDetected).toBe(true);
+    expect(result.heartRateValid).toBe(true);
+    expect(Math.abs((result.heartRateBpm ?? 0) - 72)).toBeLessThanOrEqual(6);
+  });
+
+  it("produces a plausible SpO2 on a clean pulse", () => {
+    const processor = new Max30102Processor();
+    let result = processor.addBatch(batch(0));
+    for (let second = 1; second <= 10; second += 1) {
+      result = processor.addBatch(batch(second * 1000));
+    }
+    expect(result.spo2Valid).toBe(true);
+    expect(result.spo2Percent).toBeGreaterThanOrEqual(70);
+    expect(result.spo2Percent).toBeLessThanOrEqual(100);
+  });
+
+  it("detects heart rate in a noisy but periodic window", () => {
+    const processor = new Max30102Processor();
+    let result = processor.addBatch(batch(0, { ac: 300 }));
+    for (let second = 1; second <= 10; second += 1) {
+      result = processor.addBatch(batch(second * 1000, { ac: 300 }));
+    }
+    expect(result.heartRateValid).toBe(true);
+    expect(Math.abs((result.heartRateBpm ?? 0) - 72)).toBeLessThanOrEqual(8);
+  });
+
+  it("rejects a window while the IMU reports strong motion", () => {
+    const processor = new Max30102Processor();
+    let result = processor.addBatch(batch(0));
+    for (let second = 1; second <= 10; second += 1) {
+      processor.setMotionRms(1.2);
+      result = processor.addBatch(batch(second * 1000));
+    }
+    expect(result.state).toBe("poor_signal");
+    expect(result.heartRateValid).toBe(false);
+  });
+
+  it("publishes PRV after 12 accepted beats", () => {
+    const processor = new Max30102Processor();
+    let result = processor.addBatch(batch(0));
+    for (let second = 1; second <= 15; second += 1) {
+      result = processor.addBatch(batch(second * 1000));
+    }
+    expect(result.prvBeats).toBeGreaterThanOrEqual(12);
+    expect(result.prvRmssdMs).not.toBeNull();
   });
 });

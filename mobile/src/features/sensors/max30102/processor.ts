@@ -1,25 +1,31 @@
-import {
-  BUFFER_SIZE,
-  FREQ_S,
-  maximHeartRateAndSpo2,
-} from "@/features/sensors/max30102/algorithm";
 import type { OpticalState } from "@/types/health";
+import {
+  analysePpg,
+  intervalVariation as variationOf,
+  median,
+  pearson,
+  percentile,
+  type PpgOptions,
+} from "@/features/sensors/max30102/ppg";
+
 /**
  * App-side MAX30102 pipeline.
  *
  * The firmware preserves raw paired samples and their order. This module:
  *   - buffers them with a device-relative timestamp,
  *   - resamples the incoming rate (measured at 25-30 Hz) to exactly 25 Hz,
- *   - takes a 4 s window (100 samples) and runs the Maxim/SparkFun algorithm,
- *   - computes the perfusion index and accumulates beat intervals for PRV,
- *   - applies the contact / pulse / quality state machine,
- *   - keeps heart-rate and SpO2 validity independent.
+ *   - analyses a trailing 4-10 s window with the adaptive PPG detector,
+ *   - accumulates beat intervals for a longer-window PRV,
+ *   - applies contact / clipping / motion / pulse-consistency gates.
+ *
+ * Heart rate and SpO2 keep independent validity. A weak but periodic signal can
+ * publish heart rate even when SpO2 is still withheld, and vice versa.
  */
 export interface OpticalResult {
   state: OpticalState;
   /** Reflection present at the photodiode. Does not prove a finger. */
   opticalSignalPresent: boolean;
-  /** Heuristic: optical levels and pulsatility are consistent with tissue. */
+  /** Optical levels and pulsatility are consistent with tissue. */
   contactLikely: boolean;
   pulseDetected: boolean;
   ppgQuality: "good" | "fair" | "poor" | "insufficient";
@@ -48,9 +54,11 @@ export interface OpticalBatch {
   samples: Array<[number, number]>;
 }
 
-export interface Max30102Options {
+export interface Max30102Options extends PpgOptions {
   targetHz?: number;
+  /** Preferred analysis window; the processor uses whatever exists after 4 s. */
   windowSeconds?: number;
+  minAnalysisSeconds?: number;
   maxBufferSeconds?: number;
   /** Raw IR DC counts below this are treated as no optical signal. */
   signalMinIr?: number;
@@ -58,13 +66,16 @@ export interface Max30102Options {
   contactMinIr?: number;
   /** Peak-to-peak IR counts required before contact is considered likely. */
   contactMinAc?: number;
-  minHeartRate?: number;
-  maxHeartRate?: number;
-  minSpo2?: number;
-  maxSpo2?: number;
   /** Dynamic-acceleration RMS (g) above which the window is motion-corrupted. */
   maxMotionRmsG?: number;
+  /** Accepted intervals needed before PRV is published. */
+  prvMinIntervals?: number;
 }
+
+export const FREQ_S = 25;
+const CLIP_COUNT = 0x3ffff;
+const PRV_MAX_INTERVALS = 100;
+const ALGORITHM_VERSION = "max3010x-app-v3";
 
 const EMPTY: OpticalResult = {
   state: "verifying_pulse",
@@ -79,7 +90,7 @@ const EMPTY: OpticalResult = {
   perfusionIndexPercent: null,
   prvRmssdMs: null,
   prvBeats: 0,
-  algorithmVersion: "max3010x-app-v2",
+  algorithmVersion: ALGORITHM_VERSION,
   sampleRateHz: 0,
   windowSamples: 0,
   red: null,
@@ -89,22 +100,12 @@ const EMPTY: OpticalResult = {
   acAmplitude: null,
 };
 
-const CLIP_COUNT = 0x3ffff;
-const PRV_MIN_INTERVALS = 30;
-const PRV_MAX_INTERVALS = 120;
-
 const round = (value: number, places: number) => Number(value.toFixed(places));
 
 /** Coefficient of variation of beat intervals (std / mean). */
 export function intervalVariation(intervalsMs: readonly number[]): number | null {
-  if (intervalsMs.length < 3) return null;
-  const mean =
-    intervalsMs.reduce((sum, value) => sum + value, 0) / intervalsMs.length;
-  if (mean <= 0) return null;
-  const variance =
-    intervalsMs.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
-    intervalsMs.length;
-  return round(Math.sqrt(variance) / mean, 3);
+  const value = variationOf(intervalsMs);
+  return value === null ? null : round(value, 3);
 }
 
 /** Pearson correlation of two equally sized signals. */
@@ -112,22 +113,8 @@ export function channelCorrelation(
   first: readonly number[],
   second: readonly number[],
 ): number | null {
-  const length = Math.min(first.length, second.length);
-  if (length < 3) return null;
-  const meanFirst = first.slice(0, length).reduce((a, b) => a + b, 0) / length;
-  const meanSecond = second.slice(0, length).reduce((a, b) => a + b, 0) / length;
-  let covariance = 0;
-  let varianceFirst = 0;
-  let varianceSecond = 0;
-  for (let index = 0; index < length; index += 1) {
-    const a = first[index] - meanFirst;
-    const b = second[index] - meanSecond;
-    covariance += a * b;
-    varianceFirst += a * a;
-    varianceSecond += b * b;
-  }
-  const denominator = Math.sqrt(varianceFirst * varianceSecond);
-  return denominator > 0 ? round(covariance / denominator, 3) : null;
+  const value = pearson(first, second);
+  return value === null ? null : round(value, 3);
 }
 
 /** RMSSD of beat-to-beat intervals in ms. */
@@ -141,6 +128,20 @@ export function rmssd(intervalsMs: readonly number[]): number | null {
   return round(Math.sqrt(sum / (intervalsMs.length - 1)), 1);
 }
 
+/** Remove ectopic/noise intervals before PRV, without discarding the window. */
+function robustRmssd(intervalsMs: readonly number[]): number | null {
+  if (intervalsMs.length < 2) return null;
+  const centre = median(intervalsMs);
+  const kept = intervalsMs.filter(
+    (value) => value >= centre * 0.65 && value <= centre * 1.5,
+  );
+  if (kept.length < 2) return null;
+  const cv = intervalVariation(kept);
+  // A highly irregular interval set is an artefact, not PRV.
+  if (cv === null || cv > 0.2) return null;
+  return rmssd(kept);
+}
+
 export class Max30102Processor {
   private buffer: Array<{ t: number; red: number; ir: number }> = [];
   private intervals: Array<{ endMs: number; ms: number }> = [];
@@ -151,6 +152,7 @@ export class Max30102Processor {
 
   private readonly targetHz: number;
   private readonly windowSeconds: number;
+  private readonly minAnalysisSeconds: number;
   private readonly maxBufferSeconds: number;
   private readonly signalMinIr: number;
   private readonly contactMinIr: number;
@@ -159,20 +161,29 @@ export class Max30102Processor {
   private readonly maxHeartRate: number;
   private readonly minSpo2: number;
   private readonly maxSpo2: number;
+  private readonly minCorrelation: number;
+  private readonly maxIntervalCv: number;
   private readonly maxMotionRmsG: number;
+  private readonly prvMinIntervals: number;
 
   constructor(options: Max30102Options = {}) {
     this.targetHz = options.targetHz ?? FREQ_S;
-    this.windowSeconds = options.windowSeconds ?? 4;
-    this.maxBufferSeconds = options.maxBufferSeconds ?? 6;
+    this.windowSeconds = options.windowSeconds ?? 10;
+    this.minAnalysisSeconds = options.minAnalysisSeconds ?? 4;
+    this.maxBufferSeconds = options.maxBufferSeconds ?? 65;
+    // Deliberately low: reflection from a table can reach 77k counts, so DC
+    // alone is not contact. AC and pulsatility carry the real decision.
     this.signalMinIr = options.signalMinIr ?? 3000;
-    this.contactMinIr = options.contactMinIr ?? 10_000;
-    this.contactMinAc = options.contactMinAc ?? 8;
+    this.contactMinIr = options.contactMinIr ?? 2500;
+    this.contactMinAc = options.contactMinAc ?? 1.5;
     this.minHeartRate = options.minHeartRate ?? 30;
     this.maxHeartRate = options.maxHeartRate ?? 220;
     this.minSpo2 = options.minSpo2 ?? 70;
     this.maxSpo2 = options.maxSpo2 ?? 100;
-    this.maxMotionRmsG = options.maxMotionRmsG ?? 0.25;
+    this.minCorrelation = options.minCorrelation ?? 0.5;
+    this.maxIntervalCv = options.maxIntervalCv ?? 0.2;
+    this.maxMotionRmsG = options.maxMotionRmsG ?? 0.5;
+    this.prvMinIntervals = options.prvMinIntervals ?? 12;
   }
 
   get latest(): OpticalResult {
@@ -239,10 +250,11 @@ export class Max30102Processor {
     const clipped = batch.samples.some(
       ([red, ir]) => red >= CLIP_COUNT || ir >= CLIP_COUNT,
     );
-    const windowMs = this.windowSeconds * 1000;
+    const availableMs = last.t - this.buffer[0].t;
     const meanIr = this.meanIr();
+    const rawAc = this.rawAc();
 
-    if (last.t - this.buffer[0].t < windowMs) {
+    if (availableMs < this.minAnalysisSeconds * 1000) {
       const opticalSignalPresent = meanIr >= this.signalMinIr;
       this.result = {
         ...EMPTY,
@@ -254,64 +266,87 @@ export class Max30102Processor {
         ir: newest[1],
         clipped,
         dcLevel: Math.round(meanIr),
+        acAmplitude: Math.round(rawAc),
       };
       return this.result;
     }
 
-    const t0 = last.t - windowMs;
-    const step = 1000 / this.targetHz;
-    const resampled = this.resample(t0, step, BUFFER_SIZE);
-    const algorithm = maximHeartRateAndSpo2(resampled.ir, resampled.red);
+    const analysisSeconds = Math.min(
+      this.windowSeconds,
+      availableMs / 1000,
+    );
+    const count = Math.max(
+      1,
+      Math.round(analysisSeconds * this.targetHz),
+    );
+    const t0 = last.t - (count - 1) * (1000 / this.targetHz);
+    const resampled = this.resample(t0, 1000 / this.targetHz, count);
+    const analysis = analysePpg(resampled.ir, resampled.red, this.targetHz, {
+      minHeartRate: this.minHeartRate,
+      maxHeartRate: this.maxHeartRate,
+      minSpo2: this.minSpo2,
+      maxSpo2: this.maxSpo2,
+      minCorrelation: this.minCorrelation,
+      maxIntervalCv: this.maxIntervalCv,
+    });
 
-    const resampledDc =
-      resampled.ir.reduce((sum, value) => sum + value, 0) / resampled.ir.length;
-    const acAmplitude = Math.max(...resampled.ir) - Math.min(...resampled.ir);
-
-    const opticalSignalPresent = resampledDc >= this.signalMinIr;
+    const dcLevel = analysis.dcIr;
+    const acAmplitude = analysis.acIr;
+    const opticalSignalPresent = dcLevel >= this.signalMinIr;
     const contactLikely =
-      resampledDc >= this.contactMinIr && acAmplitude >= this.contactMinAc;
+      dcLevel >= this.contactMinIr && acAmplitude >= this.contactMinAc;
     const motionCorrupted = this.motionRmsG > this.maxMotionRmsG;
+    // Quantisation on a flat signal can look periodic at 1 count. Require a
+    // real AC excursion before calling it a pulse.
+    const pulseDetected = analysis.pulseDetected && acAmplitude >= 2.5;
 
-    // Intervals are appended once, using an approximate window-relative time.
-    if (opticalSignalPresent && !clipped && !motionCorrupted) {
-      this.appendIntervals(algorithm.intervals, last.t);
+    if (
+      opticalSignalPresent &&
+      contactLikely &&
+      !clipped &&
+      !motionCorrupted &&
+      pulseDetected
+    ) {
+      this.appendIntervals(analysis.intervals, last.t, count);
     } else if (!opticalSignalPresent) {
       this.intervals = [];
       this.lastIntervalEnd = Number.NEGATIVE_INFINITY;
     }
 
-    const intervalValues = algorithm.intervals.map((interval) => interval.ms);
-    const variation = intervalVariation(intervalValues);
-    const correspondence = channelCorrelation(resampled.red, resampled.ir);
-    const consistentIntervals =
-      intervalValues.length >= 3 && variation !== null && variation <= 0.2;
-    const channelsCorrespond =
-      correspondence !== null && correspondence >= 0.6;
-    const pulseQualityOk = consistentIntervals && channelsCorrespond;
+    const intervalCv = analysis.intervalCv;
+    const pulseQualityOk =
+      (intervalCv ?? 1) <= this.maxIntervalCv &&
+      Math.abs(analysis.correlation ?? 0) >= this.minCorrelation;
+    const usable = contactLikely && !clipped && !motionCorrupted;
 
-    const usable =
-      contactLikely && !clipped && !motionCorrupted && pulseQualityOk;
     const hrValid =
       usable &&
-      algorithm.hrValid &&
-      algorithm.heartRate >= this.minHeartRate &&
-      algorithm.heartRate <= this.maxHeartRate;
+      pulseDetected &&
+      pulseQualityOk &&
+      analysis.hrValid &&
+      analysis.heartRateBpm !== null &&
+      analysis.heartRateBpm >= this.minHeartRate &&
+      analysis.heartRateBpm <= this.maxHeartRate;
+
     const spo2Valid =
       usable &&
-      algorithm.spo2Valid &&
-      algorithm.spo2 >= this.minSpo2 &&
-      algorithm.spo2 <= this.maxSpo2;
-
-    const pulseDetected = algorithm.valleyCount >= 2 && algorithm.intervals.length > 0;
+      pulseDetected &&
+      pulseQualityOk &&
+      analysis.spo2Valid &&
+      analysis.spo2Percent !== null &&
+      analysis.spo2Percent >= this.minSpo2 &&
+      analysis.spo2Percent <= this.maxSpo2;
 
     const perfusionIndexPercent =
-      opticalSignalPresent && resampledDc > 0
-        ? round((acAmplitude / resampledDc) * 100, 2)
+      opticalSignalPresent && dcLevel > 0
+        ? round((acAmplitude / dcLevel) * 100, 2)
         : null;
 
     const prvValues = this.intervals.map((entry) => entry.ms);
     const prvRmssdMs =
-      usable && prvValues.length >= PRV_MIN_INTERVALS ? rmssd(prvValues) : null;
+      usable && prvValues.length >= this.prvMinIntervals
+        ? robustRmssd(prvValues)
+        : null;
 
     let state: OpticalState;
     let ppgQuality: OpticalResult["ppgQuality"];
@@ -322,13 +357,12 @@ export class Max30102Processor {
     } else if (clipped || motionCorrupted) {
       state = "poor_signal";
       ppgQuality = "poor";
-    } else if (pulseDetected && !pulseQualityOk) {
-      // Periodic artefacts can produce peaks without a coherent pulse.
-      state = "poor_signal";
-      ppgQuality = "poor";
     } else if (hrValid || spo2Valid) {
       state = "measurement_valid";
       ppgQuality = "good";
+    } else if (pulseDetected && (!contactLikely || !pulseQualityOk)) {
+      state = "poor_signal";
+      ppgQuality = "poor";
     } else if (pulseDetected) {
       state = "pulse_likely";
       ppgQuality = "fair";
@@ -343,32 +377,38 @@ export class Max30102Processor {
       contactLikely,
       pulseDetected,
       ppgQuality,
-      heartRateBpm: hrValid ? algorithm.heartRate : null,
+      heartRateBpm: hrValid ? analysis.heartRateBpm : null,
       heartRateValid: hrValid,
-      spo2Percent: spo2Valid ? algorithm.spo2 : null,
+      spo2Percent: spo2Valid ? analysis.spo2Percent : null,
       spo2Valid,
       perfusionIndexPercent,
       prvRmssdMs,
       prvBeats: prvValues.length,
-      algorithmVersion: EMPTY.algorithmVersion,
+      algorithmVersion: ALGORITHM_VERSION,
       sampleRateHz: Math.round(batch.rateHz),
-      windowSamples: resampled.ir.length,
+      windowSamples: count,
       red: newest[0],
       ir: newest[1],
       clipped,
-      dcLevel: Math.round(resampledDc),
+      dcLevel: Math.round(dcLevel),
       acAmplitude: Math.round(acAmplitude),
     };
     return this.result;
   }
 
   private appendIntervals(
-    intervals: Array<{ ms: number; endSample: number }>,
+    intervals: Array<{
+      ms: number;
+      endSample: number;
+      startSample?: number;
+    }>,
     windowEndMs: number,
+    count: number,
   ): void {
     for (const interval of intervals) {
       const endMs =
-        windowEndMs - (BUFFER_SIZE - 1 - interval.endSample) * (1000 / FREQ_S);
+        windowEndMs -
+        (count - 1 - interval.endSample) * (1000 / this.targetHz);
       if (endMs <= this.lastIntervalEnd + 100) continue;
       this.intervals.push({ endMs, ms: interval.ms });
       this.lastIntervalEnd = endMs;
@@ -382,6 +422,12 @@ export class Max30102Processor {
     if (this.buffer.length === 0) return 0;
     const sum = this.buffer.reduce((total, sample) => total + sample.ir, 0);
     return sum / this.buffer.length;
+  }
+
+  private rawAc(): number {
+    if (this.buffer.length < 2) return 0;
+    const values = this.buffer.map((sample) => sample.ir);
+    return percentile(values, 0.95) - percentile(values, 0.05);
   }
 
   /** Linear interpolation at the algorithm's fixed sample rate. */

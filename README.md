@@ -84,7 +84,7 @@ module. Full instructions, permissions, and troubleshooting are in
 Honesty rules enforced by the app:
 
 - Raw MAX30102 counts are labelled raw on the dashboard; HR/SpO₂ are shown
-  only when a 4 s window passes contact and quality checks, and are labelled
+  only when a 4–10 s window passes contact and quality checks, and are labelled
   estimates.
 - Temperature and IMU are decoded in the app and gated on the observed chip
   identity (LM75A address/conversion; IMU `WHO_AM_I = 0x70`). Missing data is

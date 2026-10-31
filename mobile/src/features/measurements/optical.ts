@@ -42,7 +42,7 @@ export function opticalStateView(state: OpticalState): OpticalStateView {
         label: "Measuring",
         tone: "info",
         icon: "hourglass-outline",
-        detail: "Collecting a 4-second window of paired red/IR samples.",
+        detail: "Collecting a 4–10 second window of paired red/IR samples.",
       };
     case "no_signal":
       return {

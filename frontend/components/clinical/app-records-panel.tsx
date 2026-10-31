@@ -312,7 +312,7 @@ export function AppRecordsPanel({
             hint={
               latest?.heart_rate_bpm === null
                 ? "Withheld: no valid pulse window"
-                : "MAX30102, app-side Maxim algorithm"
+                : "MAX30102, app-side adaptive PPG detector"
             }
             icon={HeartPulse}
             tone={latest?.heart_rate_bpm === null ? "text-ink-subtle" : "text-ink"}
@@ -348,7 +348,7 @@ export function AppRecordsPanel({
             unit="ms"
             hint={
               latest?.prv_rmssd_ms === null
-                ? `Needs 30 beats · ${latest?.prv_beats ?? 0} so far`
+                ? `Needs 12 beats · ${latest?.prv_beats ?? 0} so far`
                 : `${latest?.prv_beats ?? 0} accepted beats · PPG-derived`
             }
             icon={Waves}

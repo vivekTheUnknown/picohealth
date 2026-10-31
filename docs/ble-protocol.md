@@ -119,27 +119,27 @@ practice (29–30 Hz observed on this build).
 | Parse | `sensors/rawProtocol.ts` | Split by type, validate with zod, decode the binary batch |
 | Temperature | `sensors/temperature.ts` | LM75A: bits 15..5, two's complement, 0.125 °C/LSB, −55…125 °C |
 | IMU | `sensors/imu.ts` | Identity gate (0x68/0x70), 16384 LSB/g, 131 LSB/(°/s), gyro bias |
-| Optical | `sensors/max30102/processor.ts` | Timestamped buffer, resample to 25 Hz, 4 s window, contact/clipping |
-| Algorithm | `sensors/max30102/algorithm.ts` | Full Maxim/SparkFun port: DC removal, 4-pt MA, valleys, AC/DC ratio, median, 184-entry table |
+| Optical | `sensors/max30102/processor.ts` | Timestamped buffer, resample to 25 Hz, 4–10 s analysis window, contact/clipping |
+| Algorithm | `sensors/max30102/ppg.ts` | Detrend, adaptive peak detection, autocorrelation fallback, robust per-beat ratio of ratios |
 | Orchestration | `sensors/rawProcessor.ts` | Latest state + snapshot emission for UI/storage |
 
 States: `no_signal`, `verifying_pulse`, `signal_present`, `pulse_likely`,
 `measurement_valid`, `poor_signal`, `sensor_error`. A high DC level is treated as
 reflection, not proof of a finger. Heart rate and SpO2 have separate validity
 flags; contact, clipping and motion gate both, as do interval consistency
-(≥3 intervals, CV ≤0.2) and red/IR waveform correlation (≥0.6).
+(CV ≤0.4) and red/IR waveform correlation (≥0.15).
 
 Derived app-side metrics:
 
-- **PI** = `100 × AC_IR / DC_IR` over the 4 s window.
-- **PRV (RMSSD)** from accepted beat intervals; requires ≥30 intervals.
+- **PI** = `100 × AC_IR / DC_IR` over the 4–10 s analysis window.
+- **PRV (RMSSD)** from accepted beat intervals; requires ≥12 intervals.
 - **Temperature trend** over a 5-minute window.
 - **Movement intensity** from gravity-removed acceleration RMS.
 - **Device orientation** from the dominant gravity axis.
-- Algorithm version: `max3010x-app-v2`, stored with every record.
+- Algorithm version: `max3010x-app-v3`, stored with every record.
 
-The algorithm assumes 25 Hz / 100 samples; the measured 25–30 Hz stream is
-linearly resampled so the reference timing assumptions hold.
+The measured 25–30 Hz stream is linearly resampled to 25 Hz. Detection uses
+a 4–10 s trailing window, with a periodicity fallback for weak pulses.
 
 **Observed on the bench:** with a finger near (but not properly coupled to) the
 sensor, DC is ~77 k counts but AC is only ~30 counts with no coherent tone, so
