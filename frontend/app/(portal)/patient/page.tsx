@@ -147,6 +147,7 @@ export default function PatientOverviewPage() {
       <AppRecordsPanel
         records={records.data ?? []}
         timeZone={timeZone}
+        total={data.record_count}
         title="My measurements"
         description="Every value below was computed on your phone and synced here unchanged."
       />

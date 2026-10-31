@@ -135,12 +135,16 @@ export function AppRecordsPanel({
   timeZone,
   title = "App measurements",
   description,
+  total,
 }: {
   records: AppRecord[];
   timeZone: string;
   title?: string;
   description?: string;
+  /** Total stored records when the list is bounded. */
+  total?: number;
 }) {
+  const totalRecords = total ?? records.length;
   const [metric, setMetric] = useState<MetricKey>("heart_rate_bpm");
   const latest = records[0] ?? null;
 
@@ -300,7 +304,10 @@ export function AppRecordsPanel({
       >
         <p className="text-xs leading-5 text-ink-subtle">
           Latest snapshot {formatDateTime(latest?.measured_at, timeZone)} ·{" "}
-          {records.length} record{records.length === 1 ? "" : "s"} loaded · algorithm{" "}
+          {records.length === totalRecords
+            ? `${records.length} record${records.length === 1 ? "" : "s"} loaded`
+            : `${records.length} of ${totalRecords} records loaded`}{" "}
+          · algorithm{" "}
           {latest?.algorithm_version ?? "not reported"}
         </p>
 
@@ -551,8 +558,8 @@ export function AppRecordsPanel({
         title="Synced records"
         description="Newest first."
         flush
-        footer={`Showing ${Math.min(records.length, 200)} of ${records.length} synced record${
-          records.length === 1 ? "" : "s"
+        footer={`Showing ${Math.min(records.length, 200)} of ${totalRecords} stored record${
+          totalRecords === 1 ? "" : "s"
         }. Older records remain stored and are available through the API.`}
       >
         <DataTable
