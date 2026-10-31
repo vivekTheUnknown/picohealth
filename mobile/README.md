@@ -185,7 +185,9 @@ The algorithm version (`max3010x-app-v2`) is stored with every record.
 
 `no_signal → verifying_pulse → signal_present → pulse_likely → measurement_valid`,
 with `poor_signal` for clipped/motion-corrupted windows and `sensor_error` for
-stream failures. A high DC level is treated as reflection, **not** proof that a
+stream failures. Before publishing BPM/SpO₂ the app also requires at least three
+plausible intervals with a coefficient of variation ≤0.2 and a red/IR
+correlation ≥0.6, so periodic artefacts cannot produce a valid-looking estimate. A high DC level is treated as reflection, **not** proof that a
 finger is present. BPM and SpO₂ keep independent validity; neither is published
 unless contact, clipping and motion checks pass.
 

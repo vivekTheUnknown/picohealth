@@ -126,7 +126,8 @@ practice (29–30 Hz observed on this build).
 States: `no_signal`, `verifying_pulse`, `signal_present`, `pulse_likely`,
 `measurement_valid`, `poor_signal`, `sensor_error`. A high DC level is treated as
 reflection, not proof of a finger. Heart rate and SpO2 have separate validity
-flags; contact, clipping and motion gate both.
+flags; contact, clipping and motion gate both, as do interval consistency
+(≥3 intervals, CV ≤0.2) and red/IR waveform correlation (≥0.6).
 
 Derived app-side metrics:
 

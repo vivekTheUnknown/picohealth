@@ -95,6 +95,41 @@ const PRV_MAX_INTERVALS = 120;
 
 const round = (value: number, places: number) => Number(value.toFixed(places));
 
+/** Coefficient of variation of beat intervals (std / mean). */
+export function intervalVariation(intervalsMs: readonly number[]): number | null {
+  if (intervalsMs.length < 3) return null;
+  const mean =
+    intervalsMs.reduce((sum, value) => sum + value, 0) / intervalsMs.length;
+  if (mean <= 0) return null;
+  const variance =
+    intervalsMs.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
+    intervalsMs.length;
+  return round(Math.sqrt(variance) / mean, 3);
+}
+
+/** Pearson correlation of two equally sized signals. */
+export function channelCorrelation(
+  first: readonly number[],
+  second: readonly number[],
+): number | null {
+  const length = Math.min(first.length, second.length);
+  if (length < 3) return null;
+  const meanFirst = first.slice(0, length).reduce((a, b) => a + b, 0) / length;
+  const meanSecond = second.slice(0, length).reduce((a, b) => a + b, 0) / length;
+  let covariance = 0;
+  let varianceFirst = 0;
+  let varianceSecond = 0;
+  for (let index = 0; index < length; index += 1) {
+    const a = first[index] - meanFirst;
+    const b = second[index] - meanSecond;
+    covariance += a * b;
+    varianceFirst += a * a;
+    varianceSecond += b * b;
+  }
+  const denominator = Math.sqrt(varianceFirst * varianceSecond);
+  return denominator > 0 ? round(covariance / denominator, 3) : null;
+}
+
 /** RMSSD of beat-to-beat intervals in ms. */
 export function rmssd(intervalsMs: readonly number[]): number | null {
   if (intervalsMs.length < 2) return null;
@@ -245,7 +280,17 @@ export class Max30102Processor {
       this.lastIntervalEnd = Number.NEGATIVE_INFINITY;
     }
 
-    const usable = contactLikely && !clipped && !motionCorrupted;
+    const intervalValues = algorithm.intervals.map((interval) => interval.ms);
+    const variation = intervalVariation(intervalValues);
+    const correspondence = channelCorrelation(resampled.red, resampled.ir);
+    const consistentIntervals =
+      intervalValues.length >= 3 && variation !== null && variation <= 0.2;
+    const channelsCorrespond =
+      correspondence !== null && correspondence >= 0.6;
+    const pulseQualityOk = consistentIntervals && channelsCorrespond;
+
+    const usable =
+      contactLikely && !clipped && !motionCorrupted && pulseQualityOk;
     const hrValid =
       usable &&
       algorithm.hrValid &&
@@ -275,6 +320,10 @@ export class Max30102Processor {
       state = "no_signal";
       ppgQuality = "insufficient";
     } else if (clipped || motionCorrupted) {
+      state = "poor_signal";
+      ppgQuality = "poor";
+    } else if (pulseDetected && !pulseQualityOk) {
+      // Periodic artefacts can produce peaks without a coherent pulse.
       state = "poor_signal";
       ppgQuality = "poor";
     } else if (hrValid || spo2Valid) {

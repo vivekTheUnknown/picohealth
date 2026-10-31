@@ -1,5 +1,7 @@
 import {
   Max30102Processor,
+  channelCorrelation,
+  intervalVariation,
   rmssd,
   type OpticalBatch,
 } from "@/features/sensors/max30102/processor";
@@ -144,5 +146,41 @@ describe("rmssd", () => {
     // Differences: 10, -10, 10 -> squares 100,100,100 -> mean 100 -> 10.
     expect(rmssd([800, 810, 800, 810])).toBe(10);
     expect(rmssd([800])).toBeNull();
+  });
+});
+
+
+describe("pulse consistency gates", () => {
+  it("computes interval variation", () => {
+    expect(intervalVariation([800, 800, 800])).toBe(0);
+    expect(intervalVariation([800, 900, 1000]) ?? 0).toBeGreaterThan(0.08);
+    expect(intervalVariation([800])).toBeNull();
+  });
+
+  it("computes red/IR correspondence", () => {
+    const a = [1, 2, 3, 4, 5];
+    const b = [2, 4, 6, 8, 10];
+    expect(channelCorrelation(a, b)).toBe(1);
+    expect(channelCorrelation(a, [5, 4, 3, 2, 1])).toBe(-1);
+    expect(channelCorrelation(a, [1, 1, 1, 1, 1])).toBeNull();
+  });
+
+  it("rejects a window whose red and IR pulses disagree", () => {
+    const processor = new Max30102Processor();
+    // IR is pulsatile; red is flat noise, so the channels do not correspond.
+    const samples: Array<[number, number]> = [];
+    for (let second = 0; second < 6; second += 1) {
+      for (let index = 0; index < 28; index += 1) {
+        const t = second + index / 28;
+        samples.push([
+          60000 + (index % 3),
+          Math.round(70000 + 2000 * Math.sin(2 * Math.PI * 1.2 * t)),
+        ]);
+      }
+    }
+    const result = processor.addBatch({ firstMs: 0, rateHz: 28, samples });
+    expect(result.state).toBe("poor_signal");
+    expect(result.heartRateValid).toBe(false);
+    expect(result.spo2Valid).toBe(false);
   });
 });
