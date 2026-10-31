@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "picohealth-portal",
+  "compatibility_date": "2026-10-30",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  // Set the real Render URL at deploy time:
+  //   wrangler deploy --var API_PROXY_TARGET:https://....onrender.com
+  "vars": {
+    "API_PROXY_TARGET": "http://localhost:8000"
+  }
+}

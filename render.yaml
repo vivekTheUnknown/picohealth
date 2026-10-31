@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: picohealth-api
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: pip install -e .
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*
+    healthCheckPath: /health/live
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SECURE_COOKIES
+        value: "true"
+      - key: ALLOWED_ORIGINS
+        value: "[]"
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      # Neon pooled connection string. Set in the Render dashboard or via the
+      # API; never commit it.
+      - key: DATABASE_URL
+        sync: false

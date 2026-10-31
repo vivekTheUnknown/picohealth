@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -48,6 +49,21 @@ class Settings(BaseSettings):
     # Only needed when the frontend is served from a different origin.
     # Preferred deployment proxies /api/* through Next.js (same origin).
     allowed_origins: list[str] = ["http://localhost:3000"]
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalise_postgres_driver(cls, value: str) -> str:
+        """Accept the URL Neon (and most hosts) hand out.
+
+        SQLAlchemy's bare `postgresql://` defaults to psycopg2, which this
+        project does not install. The project ships psycopg 3, so rewrite the
+        scheme to `postgresql+psycopg://` while leaving explicit drivers alone.
+        """
+        if value.startswith("postgres://"):
+            return "postgresql+psycopg://" + value[len("postgres://") :]
+        if value.startswith("postgresql://"):
+            return "postgresql+psycopg://" + value[len("postgresql://") :]
+        return value
 
     @property
     def is_production(self) -> bool:

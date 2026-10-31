@@ -23,3 +23,9 @@ out/
 # Pico firmware build artifacts and starter archive
 *.uf2
 pico_w_ble_wearable_starter.zip
+
+# Deployment / Cloudflare local state
+.env.deploy
+.dev.vars
+.open-next/
+.wrangler/

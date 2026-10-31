@@ -1,14 +1,11 @@
 import type { NextConfig } from "next";
 
 /**
- * /api/* is proxied to the FastAPI service so the browser only ever talks to
- * the portal origin. That keeps the HttpOnly session cookie first-party and
- * removes the need for CORS. Override the target per environment.
+ * /api/* is proxied by `app/api/[...path]/route.ts` so the browser and the
+ * phone only ever talk to the portal origin. That keeps the HttpOnly session
+ * cookie first-party and removes the need for CORS. The proxy target is a
+ * runtime environment variable; no rewrite is baked into the build.
  */
-const apiProxyTarget = (
-  process.env.API_PROXY_TARGET || "http://localhost:8000"
-).replace(/\/+$/, "");
-
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -25,14 +22,6 @@ const nextConfig: NextConfig = {
   // The repository contains unrelated lockfiles above this app; keep tracing
   // scoped to the portal so builds do not infer the home directory as root.
   outputFileTracingRoot: process.cwd(),
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${apiProxyTarget}/api/:path*`,
-      },
-    ];
-  },
   async headers() {
     return [
       {
