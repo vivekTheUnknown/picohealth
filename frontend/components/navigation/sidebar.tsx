@@ -89,7 +89,7 @@ export function Sidebar({
               )}
               <ul className="space-y-px">
                 {section.items.map((item) => {
-                  const active = isActivePath(pathname, item.href);
+                  const active = isActivePath(pathname, item.href, item.exact);
                   const Icon = item.icon;
                   return (
                     <li key={item.href}>

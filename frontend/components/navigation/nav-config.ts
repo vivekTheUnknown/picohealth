@@ -27,6 +27,8 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   visible: (me: Me) => boolean;
+  /** Match only this exact path, not nested routes. */
+  exact?: boolean;
 }
 
 export interface NavSection {
@@ -47,6 +49,7 @@ const SECTIONS: NavSection[] = [
         label: "Overview",
         icon: LayoutDashboard,
         visible: (me) => isPatient(me),
+        exact: true,
       },
       {
         href: "/patient/records",
@@ -64,6 +67,7 @@ const SECTIONS: NavSection[] = [
         label: "Clinical overview",
         icon: LayoutDashboard,
         visible: (me) => isDoctor(me),
+        exact: true,
       },
       {
         href: "/patients",
@@ -87,6 +91,7 @@ const SECTIONS: NavSection[] = [
         label: "Operations overview",
         icon: Gauge,
         visible: (me) => isAdmin(me),
+        exact: true,
       },
       {
         href: "/admin/users",
@@ -136,6 +141,7 @@ const SECTIONS: NavSection[] = [
         label: "Profile & settings",
         icon: Settings,
         visible: () => true,
+        exact: true,
       },
     ],
   },
@@ -148,7 +154,12 @@ export function sectionsFor(me: Me): NavSection[] {
   })).filter((section) => section.items.length > 0);
 }
 
-export function isActivePath(pathname: string, href: string): boolean {
+export function isActivePath(
+  pathname: string,
+  href: string,
+  exact = false,
+): boolean {
   if (pathname === href) return true;
+  if (exact) return false;
   return pathname.startsWith(`${href}/`);
 }
