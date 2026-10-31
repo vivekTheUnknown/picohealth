@@ -8,10 +8,15 @@ import {
   type ChartSeries,
 } from "@/components/charts/TimeSeriesChart";
 import { Screen, ScreenHeader } from "@/components/ui/layout";
-import { Badge, Card, SectionTitle } from "@/components/ui/primitives";
+import { Badge, Card, InfoRow, SectionTitle } from "@/components/ui/primitives";
 import { EmptyState } from "@/components/ui/states";
 import { usePicoHealth } from "@/features/app/PicoHealthProvider";
 import { describeAge } from "@/features/measurements/staleness";
+import { opticalStateView } from "@/features/measurements/optical";
+import {
+  ACTIVITY_LABELS,
+  ORIENTATION_LABELS,
+} from "@/features/measurements/labels";
 import { spacing, type, useTheme } from "@/theme/tokens";
 
 const RANGES = [
@@ -137,28 +142,10 @@ export default function LiveScreen() {
           </View>
 
           {frame?.signalQuality ? (
-            <Badge
-              label={
-                frame.signalQuality === "valid"
-                  ? "Pulse estimate available"
-                  : frame.signalQuality === "collecting"
-                    ? "Collecting optical window"
-                    : frame.signalQuality === "no_contact"
-                      ? "Place finger for pulse"
-                      : frame.signalQuality === "poor_signal"
-                        ? "Optical signal poor"
-                        : "Optical sensor error"
-              }
-              tone={
-                frame.signalQuality === "valid"
-                  ? "success"
-                  : frame.signalQuality === "sensor_error"
-                    ? "danger"
-                    : frame.signalQuality === "collecting"
-                      ? "info"
-                      : "warning"
-              }
-            />
+            (() => {
+              const view = opticalStateView(frame.signalQuality);
+              return <Badge label={view.label} tone={view.tone} icon={view.icon} />;
+            })()
           ) : null}
 
           <SectionTitle
@@ -229,6 +216,37 @@ export default function LiveScreen() {
             />
           </Card>
 
+          <SectionTitle>Derived metrics</SectionTitle>
+          <Card>
+            <View style={styles.readouts}>
+              <Readout
+                label="Perfusion index"
+                value={latest.perfusionIndexPercent}
+                unit="%"
+                digits={2}
+              />
+              <Readout
+                label="PRV (RMSSD)"
+                value={latest.prvRmssdMs}
+                unit=" ms"
+                digits={0}
+              />
+            </View>
+            <InfoRow
+              label="Activity"
+              value={ACTIVITY_LABELS[latest.activityLevel]}
+            />
+            <InfoRow
+              label="Device orientation"
+              value={ORIENTATION_LABELS[latest.orientationClass ?? "unknown"]}
+            />
+            <Text style={[styles.note, { color: colors.textSubtle }]}>
+              PI is 100 × AC/DC on the IR channel. PRV is PPG-derived RMSSD, not ECG
+              HRV, and needs at least 30 accepted beats. Activity thresholds are
+              uncalibrated for wearing position.
+            </Text>
+          </Card>
+
           <SectionTitle>Lateral / centripetal acceleration</SectionTitle>
           <Card>
             <AccelerationVector vector={latest.lateralG} trail={trail} />
@@ -284,13 +302,23 @@ export default function LiveScreen() {
   );
 }
 
-function Readout({ label, value }: { label: string; value: number | null }) {
+function Readout({
+  label,
+  value,
+  unit = "°",
+  digits = 0,
+}: {
+  label: string;
+  value: number | null;
+  unit?: string;
+  digits?: number;
+}) {
   const { colors } = useTheme();
   return (
     <View style={styles.readout}>
       <Text style={[styles.readoutLabel, { color: colors.textSubtle }]}>{label}</Text>
       <Text style={[styles.readoutValue, { color: colors.text }]}>
-        {value === null ? "--" : `${Math.round(value)}°`}
+        {value === null ? "--" : `${value.toFixed(digits)}${unit}`}
       </Text>
     </View>
   );

@@ -123,9 +123,19 @@ practice (29–30 Hz observed on this build).
 | Algorithm | `sensors/max30102/algorithm.ts` | Full Maxim/SparkFun port: DC removal, 4-pt MA, valleys, AC/DC ratio, median, 184-entry table |
 | Orchestration | `sensors/rawProcessor.ts` | Latest state + snapshot emission for UI/storage |
 
-Quality states: `collecting`, `no_contact`, `poor_signal`, `valid`,
-`sensor_error`. Heart rate and SpO2 have separate validity flags. Contact and
-clipping gate both, so a plausible-looking ratio with no finger is not shown.
+States: `no_signal`, `verifying_pulse`, `signal_present`, `pulse_likely`,
+`measurement_valid`, `poor_signal`, `sensor_error`. A high DC level is treated as
+reflection, not proof of a finger. Heart rate and SpO2 have separate validity
+flags; contact, clipping and motion gate both.
+
+Derived app-side metrics:
+
+- **PI** = `100 × AC_IR / DC_IR` over the 4 s window.
+- **PRV (RMSSD)** from accepted beat intervals; requires ≥30 intervals.
+- **Temperature trend** over a 5-minute window.
+- **Movement intensity** from gravity-removed acceleration RMS.
+- **Device orientation** from the dominant gravity axis.
+- Algorithm version: `max3010x-app-v2`, stored with every record.
 
 The algorithm assumes 25 Hz / 100 samples; the measured 25–30 Hz stream is
 linearly resampled so the reference timing assumptions hold.

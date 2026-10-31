@@ -14,6 +14,12 @@ import { EmptyState, ErrorState } from "@/components/ui/states";
 import { Screen, ScreenHeader } from "@/components/ui/layout";
 import { usePicoHealth } from "@/features/app/PicoHealthProvider";
 import { describeAge, freshnessFor } from "@/features/measurements/staleness";
+import { opticalStateView } from "@/features/measurements/optical";
+import { temperatureTrend } from "@/features/measurements/trends";
+import {
+  ACTIVITY_LABELS,
+  ORIENTATION_LABELS,
+} from "@/features/measurements/labels";
 import {
   imuDetail,
   imuValue,
@@ -50,67 +56,9 @@ const BUSY = new Set<ConnectionState>([
   "reconnecting",
 ]);
 
-/** App-side MAX30102 quality state -> badge + explanation. */
-function pulsePresentation(frame: {
-  signalQuality?: string;
-}): {
-  label: string;
-  tone: "neutral" | "accent" | "success" | "warning" | "danger" | "info";
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-  detail: string;
-} {
-  switch (frame.signalQuality) {
-    case "valid":
-      return {
-        label: "Estimate available",
-        tone: "success",
-        icon: "checkmark-circle",
-        detail: "A full 4-second window passed the signal-quality checks.",
-      };
-    case "no_contact":
-      return {
-        label: "Place finger",
-        tone: "warning",
-        icon: "hand-left",
-        detail:
-          "The optical DC level is too low for skin contact. Place a finger over the sensor.",
-      };
-    case "poor_signal":
-      return {
-        label: "Poor signal",
-        tone: "warning",
-        icon: "warning-outline",
-        detail:
-          "The window failed quality checks. Keep still and adjust finger placement.",
-      };
-    case "sensor_error":
-      return {
-        label: "Sensor error",
-        tone: "danger",
-        icon: "close-circle",
-        detail: "The optical stream reported an error. Check the sensor connection.",
-      };
-    case "collecting":
-      return {
-        label: "Measuring",
-        tone: "info",
-        icon: "hourglass-outline",
-        detail:
-          "Collecting a 4-second window of paired red/IR samples before estimating.",
-      };
-    default:
-      return {
-        label: "No estimate",
-        tone: "neutral",
-        icon: "remove-circle",
-        detail: "No validated optical window is available yet.",
-      };
-  }
-}
-
 export default function DashboardScreen() {
   const { colors } = useTheme();
-  const { settings, ble, frame, now, frameCount } = usePicoHealth();
+  const { settings, ble, frame, now, frameCount, series } = usePicoHealth();
 
   const connection = CONNECTION[ble.state];
   const streaming = settings.demoMode || ble.state === "connected";
@@ -119,6 +67,15 @@ export default function DashboardScreen() {
     : "none";
   const isStale = streaming && freshness === "stale";
   const busy = BUSY.has(ble.state);
+  const pulse = frame?.signalQuality
+    ? opticalStateView(frame.signalQuality)
+    : {
+        label: "No estimate",
+        tone: "neutral" as const,
+        icon: "remove-circle" as const,
+        detail: "No optical state is available yet.",
+      };
+  const trend = temperatureTrend(series, 5 * 60_000, now);
 
   return (
     <Screen>
@@ -257,9 +214,9 @@ export default function DashboardScreen() {
                 <Text style={[styles.cardTitle, { color: colors.text }]}>Pulse & oxygen</Text>
               </View>
               <Badge
-                label={pulsePresentation(frame).label}
-                tone={pulsePresentation(frame).tone}
-                icon={pulsePresentation(frame).icon}
+                label={pulse.label}
+                tone={pulse.tone}
+                icon={pulse.icon}
               />
             </View>
 
@@ -286,8 +243,34 @@ export default function DashboardScreen() {
               </View>
             </View>
 
+            <View style={styles.derivedRow}>
+              <View style={styles.derivedItem}>
+                <Text style={[styles.derivedLabel, { color: colors.textSubtle }]}>
+                  Perfusion index (IR)
+                </Text>
+                <Text style={[styles.derivedValue, { color: colors.text }]}>
+                  {frame.perfusionIndexPercent != null
+                    ? `${frame.perfusionIndexPercent.toFixed(2)}%`
+                    : "--"}
+                </Text>
+              </View>
+              <View style={styles.derivedItem}>
+                <Text style={[styles.derivedLabel, { color: colors.textSubtle }]}>
+                  PRV (RMSSD)
+                </Text>
+                <Text style={[styles.derivedValue, { color: colors.text }]}>
+                  {frame.prvRmssdMs != null
+                    ? `${frame.prvRmssdMs} ms`
+                    : "--"}
+                </Text>
+                <Text style={[styles.derivedHint, { color: colors.textSubtle }]}>
+                  {frame.prvBeats ? `${frame.prvBeats} beats` : "needs 30 beats"}
+                </Text>
+              </View>
+            </View>
+
             <Text style={[styles.detail, { color: colors.textMuted }]}>
-              {pulsePresentation(frame).detail}
+              {pulse.detail}
             </Text>
             <Text style={[styles.technical, { color: colors.textSubtle }]}>
               Derived in the app from raw MAX30102 red/IR samples using the
@@ -334,6 +317,11 @@ export default function DashboardScreen() {
             <Text style={[styles.detail, { color: colors.textMuted }]}>
               {temperatureDetail(frame)}
             </Text>
+            <Text style={[styles.technical, { color: colors.textSubtle }]}>
+              {trend.deltaC !== null
+                ? `${trend.deltaC >= 0 ? "+" : ""}${trend.deltaC.toFixed(2)} °C over ${trend.windowMinutes} min · average ${trend.averageC?.toFixed(2)} °C`
+                : "Trend needs at least two samples in the last 5 minutes."}
+            </Text>
           </Card>
 
           <Card>
@@ -350,6 +338,44 @@ export default function DashboardScreen() {
             </View>
             <Text style={[styles.imuValue, { color: colors.text }]}>{imuValue(frame)}</Text>
             <Text style={[styles.detail, { color: colors.textMuted }]}>{imuDetail(frame)}</Text>
+          </Card>
+
+          <Card>
+            <View style={styles.cardHeader}>
+              <View style={styles.titleRow}>
+                <Ionicons name="walk" size={18} color={colors.accent} />
+                <Text style={[styles.cardTitle, { color: colors.text }]}>
+                  Movement & orientation
+                </Text>
+              </View>
+              <Badge
+                label={ACTIVITY_LABELS[frame.activityLevel ?? "unknown"]}
+                tone={
+                  frame.activityLevel === "high_activity"
+                    ? "warning"
+                    : frame.activityLevel === "moderate_activity"
+                      ? "info"
+                      : "neutral"
+                }
+                icon="walk"
+              />
+            </View>
+            <InfoRow
+              label="Dynamic RMS"
+              value={
+                frame.activityRmsG != null
+                  ? `${frame.activityRmsG.toFixed(3)} g`
+                  : "—"
+              }
+            />
+            <InfoRow
+              label="Device orientation"
+              value={ORIENTATION_LABELS[frame.orientationClass ?? "unknown"]}
+            />
+            <Text style={[styles.technical, { color: colors.textSubtle }]}>
+              Movement thresholds are uncalibrated for wearing position. This is device
+              orientation, not body posture.
+            </Text>
           </Card>
         </>
       ) : (
@@ -406,6 +432,19 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   pulseUnit: { fontSize: type.caption },
+  derivedRow: {
+    flexDirection: "row",
+    gap: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  derivedItem: { flex: 1, gap: 1 },
+  derivedLabel: { fontSize: type.caption },
+  derivedValue: {
+    fontSize: 16,
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
+  },
+  derivedHint: { fontSize: 10 },
   metric: {
     fontSize: type.metric,
     fontWeight: "700",

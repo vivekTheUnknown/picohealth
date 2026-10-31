@@ -65,7 +65,7 @@ describe("sensor presentation", () => {
       heartRateValid: true,
       spo2Percent: 97,
       spo2Valid: true,
-      signalQuality: "valid",
+      signalQuality: "measurement_valid",
     });
     expect(summary).toContain("HR 72 bpm");
     expect(summary).toContain("SpO₂ 97%");

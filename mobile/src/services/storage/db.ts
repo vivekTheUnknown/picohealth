@@ -38,6 +38,13 @@ async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
           hr_valid INTEGER,
           spo2_valid INTEGER,
           signal_quality TEXT,
+          perfusion_index_percent REAL,
+          prv_rmssd_ms REAL,
+          prv_beats INTEGER,
+          activity_level TEXT,
+          activity_rms_g REAL,
+          orientation_class TEXT,
+          algorithm_version TEXT,
           uploaded INTEGER NOT NULL DEFAULT 0,
           uploaded_at TEXT
         );
@@ -81,6 +88,13 @@ async function ensureMeasurementColumns(database: SQLite.SQLiteDatabase): Promis
     ["hr_valid", "INTEGER"],
     ["spo2_valid", "INTEGER"],
     ["signal_quality", "TEXT"],
+    ["perfusion_index_percent", "REAL"],
+    ["prv_rmssd_ms", "REAL"],
+    ["prv_beats", "INTEGER"],
+    ["activity_level", "TEXT"],
+    ["activity_rms_g", "REAL"],
+    ["orientation_class", "TEXT"],
+    ["algorithm_version", "TEXT"],
   ];
   for (const [name, type] of additions) {
     if (!existing.has(name)) {
@@ -111,6 +125,13 @@ interface MeasurementRow {
   hr_valid: number | null;
   spo2_valid: number | null;
   signal_quality: string | null;
+  perfusion_index_percent: number | null;
+  prv_rmssd_ms: number | null;
+  prv_beats: number | null;
+  activity_level: string | null;
+  activity_rms_g: number | null;
+  orientation_class: string | null;
+  algorithm_version: string | null;
   uploaded: number;
   uploaded_at: string | null;
 }
@@ -161,6 +182,16 @@ function toRecord(row: MeasurementRow): MeasurementRecord {
     spo2Valid: row.spo2_valid === 1,
     signalQuality:
       (row.signal_quality as MeasurementRecord["signalQuality"]) ?? undefined,
+    perfusionIndexPercent: row.perfusion_index_percent,
+    prvRmssdMs: row.prv_rmssd_ms,
+    prvBeats: row.prv_beats ?? undefined,
+    activityLevel:
+      (row.activity_level as MeasurementRecord["activityLevel"]) ?? undefined,
+    activityRmsG: row.activity_rms_g,
+    orientationClass:
+      (row.orientation_class as MeasurementRecord["orientationClass"]) ??
+      undefined,
+    algorithmVersion: row.algorithm_version ?? undefined,
     uploaded: row.uploaded === 1,
     uploadedAt: row.uploaded_at,
   };
@@ -174,8 +205,10 @@ export async function insertMeasurement(record: MeasurementRecord): Promise<void
       optical_status, temperature_status, imu_status,
       temperature_c, red_raw, ir_raw, accel_json, gyro_json, samples,
       source, heart_rate_bpm, spo2_percent, hr_valid, spo2_valid, signal_quality,
+      perfusion_index_percent, prv_rmssd_ms, prv_beats,
+      activity_level, activity_rms_g, orientation_class, algorithm_version,
       uploaded, uploaded_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       record.id,
       new Date(record.receivedAt).toISOString(),
@@ -198,6 +231,13 @@ export async function insertMeasurement(record: MeasurementRecord): Promise<void
       record.heartRateValid ? 1 : 0,
       record.spo2Valid ? 1 : 0,
       record.signalQuality ?? null,
+      record.perfusionIndexPercent ?? null,
+      record.prvRmssdMs ?? null,
+      record.prvBeats ?? null,
+      record.activityLevel ?? null,
+      record.activityRmsG ?? null,
+      record.orientationClass ?? null,
+      record.algorithmVersion ?? null,
       record.uploaded ? 1 : 0,
       record.uploadedAt,
     ],

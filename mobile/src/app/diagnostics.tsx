@@ -63,7 +63,7 @@ export default function DiagnosticsScreen() {
             />
             <InfoRow
               label="Optical quality"
-              value={<Badge label={rawSnapshot.optical.status} tone="neutral" />}
+              value={<Badge label={rawSnapshot.optical.state} tone="neutral" />}
             />
           </Card>
 
@@ -90,7 +90,7 @@ export default function DiagnosticsScreen() {
             />
             <InfoRow
               label="Contact"
-              value={rawSnapshot.optical.contact ? "yes" : "no"}
+              value={rawSnapshot.optical.contactLikely ? "likely" : "no"}
             />
             <InfoRow
               label="Clipped"

@@ -277,7 +277,14 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
         spo2Percent: optical.spo2Percent,
         heartRateValid: optical.heartRateValid,
         spo2Valid: optical.spo2Valid,
-        signalQuality: optical.status,
+        signalQuality: optical.state,
+        perfusionIndexPercent: optical.perfusionIndexPercent,
+        prvRmssdMs: optical.prvRmssdMs,
+        prvBeats: optical.prvBeats,
+        algorithmVersion: optical.algorithmVersion,
+        activityLevel: snapshot.activityLevel,
+        activityRmsG: snapshot.activityRmsG,
+        orientationClass: snapshot.orientationClass,
       };
 
       setRawSnapshot(snapshot);
@@ -295,6 +302,11 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
         pitch: snapshot.orientation?.pitch ?? null,
         yaw: snapshot.orientation?.yaw ?? null,
         lateralG: snapshot.lateralG,
+        perfusionIndexPercent: snapshot.optical.perfusionIndexPercent,
+        prvRmssdMs: snapshot.optical.prvRmssdMs,
+        activityRmsG: snapshot.activityRmsG,
+        activityLevel: snapshot.activityLevel,
+        orientationClass: snapshot.orientationClass,
       };
       setSeries((previous) => {
         const cutoff = point.t - 15 * 60 * 1000;

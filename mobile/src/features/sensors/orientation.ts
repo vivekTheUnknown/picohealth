@@ -70,3 +70,35 @@ export function directionDegrees(vector: Vec3): number {
   // Angle in the X-Y plane, 0° = +X, counter-clockwise.
   return wrapDegrees((Math.atan2(vector[1], vector[0]) * DEG));
 }
+
+import type { ActivityLevel, DeviceOrientation } from "@/types/health";
+
+export type { ActivityLevel, DeviceOrientation };
+
+/**
+ * Coarse movement intensity from gravity-removed acceleration.
+ *
+ * Thresholds are deliberately conservative and uncalibrated for a wearing
+ * position; the UI labels this as movement intensity rather than an activity
+ * classification.
+ */
+export function activityLevelFromRms(rmsG: number): ActivityLevel {
+  if (!Number.isFinite(rmsG) || rmsG < 0) return "unknown";
+  if (rmsG < 0.03) return "still";
+  if (rmsG < 0.12) return "light_activity";
+  if (rmsG < 0.3) return "moderate_activity";
+  return "high_activity";
+}
+
+/** Device orientation from the gravity vector, not body posture. */
+export function orientationClassFromAccel(accel: Vec3): DeviceOrientation {
+  const [x, y, z] = accel;
+  const ax = Math.abs(x);
+  const ay = Math.abs(y);
+  const az = Math.abs(z);
+  const dominant = Math.max(ax, ay, az);
+  if (dominant < 0.6) return "unknown"; // free-fall / mostly dynamic
+  if (dominant === az) return z >= 0 ? "face_up" : "face_down";
+  if (dominant === ay) return "edge_y";
+  return "edge_x";
+}

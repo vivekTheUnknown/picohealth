@@ -13,12 +13,29 @@ export const MAX_FRAGMENT_PAYLOAD_BYTES = 20;
 
 export type SensorStatus = "ok" | "unavailable" | "error" | "unvalidated";
 
-export type SignalQuality =
-  | "no_contact"
-  | "collecting"
+/** MAX30102 contact / PPG state machine from the algorithm specification. */
+export type OpticalState =
+  | "no_signal"
+  | "signal_present"
+  | "verifying_pulse"
+  | "pulse_likely"
+  | "measurement_valid"
   | "poor_signal"
-  | "valid"
   | "sensor_error";
+
+export type ActivityLevel =
+  | "still"
+  | "light_activity"
+  | "moderate_activity"
+  | "high_activity"
+  | "unknown";
+
+export type DeviceOrientation =
+  | "face_up"
+  | "face_down"
+  | "edge_x"
+  | "edge_y"
+  | "unknown";
 
 export interface OpticalReading {
   status: SensorStatus;
@@ -55,7 +72,14 @@ export interface SensorFrame {
   spo2Percent?: number | null;
   heartRateValid?: boolean;
   spo2Valid?: boolean;
-  signalQuality?: SignalQuality;
+  signalQuality?: OpticalState;
+  perfusionIndexPercent?: number | null;
+  prvRmssdMs?: number | null;
+  prvBeats?: number;
+  algorithmVersion?: string;
+  activityLevel?: ActivityLevel;
+  activityRmsG?: number | null;
+  orientationClass?: DeviceOrientation | null;
 }
 
 /** One 1 Hz snapshot for the live graphs. */
@@ -70,6 +94,11 @@ export interface LivePoint {
   pitch: number | null;
   yaw: number | null;
   lateralG: [number, number, number] | null;
+  perfusionIndexPercent: number | null;
+  prvRmssdMs: number | null;
+  activityRmsG: number | null;
+  activityLevel: ActivityLevel;
+  orientationClass: DeviceOrientation | null;
 }
 
 export interface MeasurementRecord extends SensorFrame {

@@ -1,5 +1,7 @@
 import {
+  activityLevelFromRms,
   directionDegrees,
+  orientationClassFromAccel,
   dynamicAcceleration,
   integrateYaw,
   magnitude,
@@ -69,5 +71,26 @@ describe("gravity and dynamic acceleration", () => {
   it("wraps direction into ±180°", () => {
     expect(wrapDegrees(190)).toBe(-170);
     expect(wrapDegrees(-190)).toBe(170);
+  });
+});
+
+
+describe("activityLevelFromRms", () => {
+  it("classifies movement intensity from dynamic RMS", () => {
+    expect(activityLevelFromRms(0.01)).toBe("still");
+    expect(activityLevelFromRms(0.06)).toBe("light_activity");
+    expect(activityLevelFromRms(0.2)).toBe("moderate_activity");
+    expect(activityLevelFromRms(0.6)).toBe("high_activity");
+    expect(activityLevelFromRms(Number.NaN)).toBe("unknown");
+  });
+});
+
+describe("orientationClassFromAccel", () => {
+  it("names the dominant gravity axis", () => {
+    expect(orientationClassFromAccel([0, 0, 1])).toBe("face_up");
+    expect(orientationClassFromAccel([0, 0, -1])).toBe("face_down");
+    expect(orientationClassFromAccel([0, 1, 0])).toBe("edge_y");
+    expect(orientationClassFromAccel([1, 0, 0])).toBe("edge_x");
+    expect(orientationClassFromAccel([0.1, 0.1, 0.1])).toBe("unknown");
   });
 });

@@ -1,4 +1,8 @@
-import { Max30102Processor, type OpticalBatch } from "@/features/sensors/max30102/processor";
+import {
+  Max30102Processor,
+  rmssd,
+  type OpticalBatch,
+} from "@/features/sensors/max30102/processor";
 
 /**
  * Builds one second of paired samples at the firmware's measured rate (28 Hz)
@@ -30,8 +34,8 @@ describe("Max30102Processor", () => {
   it("reports collecting until a full window exists", () => {
     const processor = new Max30102Processor();
     const result = processor.addBatch(batch(0));
-    expect(result.status).toBe("collecting");
-    expect(result.contact).toBe(true);
+    expect(result.state).toBe("verifying_pulse");
+    expect(result.opticalSignalPresent).toBe(true);
     expect(result.windowSamples).toBe(28);
   });
 
@@ -41,7 +45,7 @@ describe("Max30102Processor", () => {
     for (let second = 1; second <= 5; second += 1) {
       result = processor.addBatch(batch(second * 1000));
     }
-    expect(result.status).toBe("valid");
+    expect(result.state).toBe("measurement_valid");
     expect(result.heartRateValid).toBe(true);
     expect(result.heartRateBpm).not.toBeNull();
     expect(Math.abs((result.heartRateBpm ?? 0) - 72)).toBeLessThanOrEqual(6);
@@ -54,8 +58,8 @@ describe("Max30102Processor", () => {
     for (let second = 1; second <= 5; second += 1) {
       result = processor.addBatch(batch(second * 1000, { dc: 800, ac: 50 }));
     }
-    expect(result.contact).toBe(false);
-    expect(result.status).toBe("no_contact");
+    expect(result.contactLikely).toBe(false);
+    expect(result.state).toBe("no_signal");
     expect(result.heartRateValid).toBe(false);
     expect(result.spo2Valid).toBe(false);
   });
@@ -67,16 +71,16 @@ describe("Max30102Processor", () => {
       result = processor.addBatch(batch(second * 1000, { clip: true }));
     }
     expect(result.clipped).toBe(true);
-    expect(result.status).toBe("poor_signal");
+    expect(result.state).toBe("poor_signal");
   });
 
   it("treats malformed batches as a sensor error", () => {
     const processor = new Max30102Processor();
-    expect(processor.addBatch({ firstMs: 0, rateHz: 0, samples: [] }).status).toBe(
+    expect(processor.addBatch({ firstMs: 0, rateHz: 0, samples: [] }).state).toBe(
       "sensor_error",
     );
     expect(
-      processor.addBatch({ firstMs: 0, rateHz: 28, samples: [[1, -2]] }).status,
+      processor.addBatch({ firstMs: 0, rateHz: 28, samples: [[1, -2]] }).state,
     ).toBe("sensor_error");
   });
 
@@ -86,5 +90,59 @@ describe("Max30102Processor", () => {
     expect(result.red).not.toBeNull();
     expect(result.ir).not.toBeNull();
     expect(result.sampleRateHz).toBe(28);
+  });
+});
+
+
+describe("derived optical metrics", () => {
+  it("computes a perfusion index from IR AC/DC", () => {
+    const processor = new Max30102Processor();
+    let result = processor.addBatch(batch(0));
+    for (let second = 1; second <= 5; second += 1) {
+      result = processor.addBatch(batch(second * 1000));
+    }
+    expect(result.perfusionIndexPercent).not.toBeNull();
+    // Generated AC is ~4000 peak-to-peak on ~70000 DC.
+    expect(result.perfusionIndexPercent ?? 0).toBeGreaterThan(3);
+    expect(result.perfusionIndexPercent ?? 0).toBeLessThan(10);
+  });
+
+  it("accumulates beat intervals and reports PRV only with enough beats", () => {
+    const processor = new Max30102Processor();
+    let result = processor.addBatch(batch(0));
+    // 30 seconds of 72 bpm gives ~36 beats, above the 30-interval gate.
+    for (let second = 1; second <= 30; second += 1) {
+      result = processor.addBatch(batch(second * 1000));
+    }
+    expect(result.prvBeats).toBeGreaterThanOrEqual(30);
+    expect(result.prvRmssdMs).not.toBeNull();
+    expect(result.prvRmssdMs ?? 0).toBeLessThan(80);
+  });
+
+  it("reports signal_present when light returns but no pulse exists", () => {
+    const processor = new Max30102Processor();
+    let result = processor.addBatch(batch(0, { dc: 60000, ac: 1 }));
+    for (let second = 1; second <= 5; second += 1) {
+      result = processor.addBatch(batch(second * 1000, { dc: 60000, ac: 1 }));
+    }
+    expect(result.opticalSignalPresent).toBe(true);
+    expect(result.pulseDetected).toBe(false);
+    expect(result.state).toBe("signal_present");
+    expect(result.heartRateValid).toBe(false);
+    expect(result.spo2Valid).toBe(false);
+  });
+
+  it("keeps the algorithm version on every result", () => {
+    const processor = new Max30102Processor();
+    const result = processor.addBatch(batch(0));
+    expect(result.algorithmVersion).toBe("max3010x-app-v2");
+  });
+});
+
+describe("rmssd", () => {
+  it("computes the root mean square of successive differences", () => {
+    // Differences: 10, -10, 10 -> squares 100,100,100 -> mean 100 -> 10.
+    expect(rmssd([800, 810, 800, 810])).toBe(10);
+    expect(rmssd([800])).toBeNull();
   });
 });

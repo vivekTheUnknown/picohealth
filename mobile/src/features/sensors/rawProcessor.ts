@@ -13,12 +13,16 @@ import {
   type TemperatureResult,
 } from "@/features/sensors/temperature";
 import {
+  activityLevelFromRms,
   dynamicAcceleration,
   integrateYaw,
+  magnitude,
+  orientationClassFromAccel,
   rollPitchFromAccel,
   updateGravity,
   type Vec3,
 } from "@/features/sensors/orientation";
+import type { ActivityLevel, DeviceOrientation } from "@/types/health";
 import type { RawMessage } from "@/features/sensors/rawProtocol";
 
 /**
@@ -43,6 +47,9 @@ export interface RawSnapshot {
   orientation: { roll: number; pitch: number; yaw: number } | null;
   /** Gravity-removed acceleration (lateral / centripetal-style). */
   lateralG: Vec3 | null;
+  activityRmsG: number | null;
+  activityLevel: ActivityLevel;
+  orientationClass: DeviceOrientation | null;
 }
 
 export class RawSensorProcessor {
@@ -62,6 +69,10 @@ export class RawSensorProcessor {
   private roll = 0;
   private pitch = 0;
   private lateralG: Vec3 | null = null;
+  private activityWindow: number[] = [];
+  private activityRmsG: number | null = null;
+  private activityLevel: ActivityLevel = "unknown";
+  private orientationClass: DeviceOrientation | null = null;
 
   constructor(
     private readonly onSnapshot: (snapshot: RawSnapshot) => void,
@@ -135,6 +146,10 @@ export class RawSensorProcessor {
     this.roll = 0;
     this.pitch = 0;
     this.lateralG = null;
+    this.activityWindow = [];
+    this.activityRmsG = null;
+    this.activityLevel = "unknown";
+    this.orientationClass = null;
   }
 
   /** Runs at the IMU rate (20 Hz), not the 1 Hz snapshot rate. */
@@ -152,6 +167,16 @@ export class RawSensorProcessor {
     this.roll = angles.roll;
     this.pitch = angles.pitch;
     this.lateralG = dynamicAcceleration(accel, this.gravity);
+    this.orientationClass = orientationClassFromAccel(accel);
+
+    this.activityWindow.push(magnitude(this.lateralG));
+    if (this.activityWindow.length > 100) this.activityWindow.shift();
+    const meanSquare =
+      this.activityWindow.reduce((sum, value) => sum + value * value, 0) /
+      this.activityWindow.length;
+    this.activityRmsG = Number(Math.sqrt(meanSquare).toFixed(3));
+    this.activityLevel = activityLevelFromRms(this.activityRmsG);
+    this.optical.setMotionRms(this.activityRmsG);
   }
 
   private applyBias(): void {
@@ -179,6 +204,9 @@ export class RawSensorProcessor {
         ? { roll: this.roll, pitch: this.pitch, yaw: this.yaw }
         : null,
       lateralG: this.lateralG,
+      activityRmsG: this.activityRmsG,
+      activityLevel: this.activityLevel,
+      orientationClass: this.orientationClass,
     };
     this.onSnapshot(this.latest);
   }

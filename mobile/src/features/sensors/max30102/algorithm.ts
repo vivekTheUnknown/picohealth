@@ -33,11 +33,22 @@ const SPO2_TABLE: readonly number[] = [
   3, 2, 1,
 ];
 
+export interface PulseInterval {
+  /** Beat-to-beat interval in milliseconds. */
+  ms: number;
+  /** Sample index of the later valley, for window-relative timing. */
+  endSample: number;
+}
+
 export interface Spo2Result {
   spo2: number;
   spo2Valid: boolean;
   heartRate: number;
   hrValid: boolean;
+  /** Accepted, plausible intervals from this window (PRV input). */
+  intervals: PulseInterval[];
+  /** Number of detected valleys before interval filtering. */
+  valleyCount: number;
 }
 
 const INVALID: Spo2Result = {
@@ -45,6 +56,8 @@ const INVALID: Spo2Result = {
   spo2Valid: false,
   heartRate: -999,
   hrValid: false,
+  intervals: [],
+  valleyCount: 0,
 };
 
 /** C integer division truncates toward zero. */
@@ -175,9 +188,18 @@ export function maximHeartRateAndSpo2(
 
   let heartRate = -999;
   let hrValid = false;
+  const intervals: PulseInterval[] = [];
   if (valleys.length >= 2) {
     let intervalSum = 0;
-    for (let k = 1; k < valleys.length; k += 1) intervalSum += valleys[k] - valleys[k - 1];
+    for (let k = 1; k < valleys.length; k += 1) {
+      const samples = valleys[k] - valleys[k - 1];
+      intervalSum += samples;
+      const ms = (samples * 1000) / FREQ_S;
+      // Plausible human beat interval: 300 ms (200 bpm) to 2000 ms (30 bpm).
+      if (ms >= 300 && ms <= 2000) {
+        intervals.push({ ms: Math.round(ms), endSample: valleys[k] });
+      }
+    }
     const meanInterval = idiv(intervalSum, valleys.length - 1);
     if (meanInterval > 0) {
       heartRate = idiv(FREQ_S * 60, meanInterval);
@@ -250,8 +272,17 @@ export function maximHeartRateAndSpo2(
       spo2Valid: true,
       heartRate,
       hrValid,
+      intervals,
+      valleyCount: valleys.length,
     };
   }
 
-  return { spo2: -999, spo2Valid: false, heartRate, hrValid };
+  return {
+    spo2: -999,
+    spo2Valid: false,
+    heartRate,
+    hrValid,
+    intervals,
+    valleyCount: valleys.length,
+  };
 }

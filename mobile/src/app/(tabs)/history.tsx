@@ -288,6 +288,34 @@ export default function HistoryScreen() {
                       label="Signal quality"
                       value={record.signalQuality ?? "not reported"}
                     />
+                    <InfoRow
+                      label="Perfusion index (IR)"
+                      value={
+                        record.perfusionIndexPercent != null
+                          ? `${record.perfusionIndexPercent.toFixed(2)}%`
+                          : "—"
+                      }
+                    />
+                    <InfoRow
+                      label="PRV (RMSSD)"
+                      value={
+                        record.prvRmssdMs != null
+                          ? `${record.prvRmssdMs} ms (${record.prvBeats ?? 0} beats)`
+                          : "—"
+                      }
+                    />
+                    <InfoRow
+                      label="Activity"
+                      value={record.activityLevel ?? "not reported"}
+                    />
+                    <InfoRow
+                      label="Device orientation"
+                      value={record.orientationClass ?? "not reported"}
+                    />
+                    <InfoRow
+                      label="Algorithm"
+                      value={record.algorithmVersion ?? "—"}
+                    />
                     <InfoRow label="Sensor flags" value={`0x${record.flags.toString(16).padStart(2, "0")}`} />
                     <InfoRow
                       label="Upload"

@@ -162,6 +162,33 @@ mobile/
 
 The BLE protocol is documented in [`../docs/ble-protocol.md`](../docs/ble-protocol.md).
 
+## Derived metrics
+
+All derived values are computed on the phone from the raw streams. Units,
+formulas and gates are fixed here so history stays comparable across builds.
+
+| Metric | Definition | Gate |
+|---|---|---|
+| Perfusion index (PI) | `100 × AC_IR / DC_IR` over the 4 s window | optical signal present |
+| PRV (RMSSD) | Root mean square of successive beat-interval differences, PPG-derived | ≥30 accepted intervals, contact, no clipping/motion |
+| Temperature trend | Delta, rate/min and average over a 5 min window | ≥2 decoded samples |
+| Movement intensity | RMS of gravity-removed acceleration over 5 s: still <0.03 g, light <0.12, moderate <0.3, high ≥0.3 | IMU valid |
+| Device orientation | Dominant gravity axis: face_up / face_down / edge_x / edge_y | IMU valid |
+| Respiratory rate | Not implemented (spec keeps it experimental until validated) | — |
+| Fall-like event | Not implemented (optional, placement-dependent) | — |
+
+PRV is **PPG-derived**, not ECG HRV. Activity thresholds are uncalibrated for a
+wearing position, and orientation is the device's orientation, not body posture.
+The algorithm version (`max3010x-app-v2`) is stored with every record.
+
+### Optical state machine
+
+`no_signal → verifying_pulse → signal_present → pulse_likely → measurement_valid`,
+with `poor_signal` for clipped/motion-corrupted windows and `sensor_error` for
+stream failures. A high DC level is treated as reflection, **not** proof that a
+finger is present. BPM and SpO₂ keep independent validity; neither is published
+unless contact, clipping and motion checks pass.
+
 ## Data handling
 
 - Every accepted frame is written to SQLite with `received_at` (phone clock) and

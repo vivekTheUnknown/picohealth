@@ -39,11 +39,12 @@ function ppg(options: {
 describe("maximHeartRateAndSpo2", () => {
   it("requires a full 100-sample window", () => {
     const { ir, red } = ppg({ samples: 60 });
-    expect(maximHeartRateAndSpo2(ir, red)).toEqual({
+    expect(maximHeartRateAndSpo2(ir, red)).toMatchObject({
       spo2: -999,
       spo2Valid: false,
       heartRate: -999,
       hrValid: false,
+      intervals: [],
     });
   });
 

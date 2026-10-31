@@ -86,6 +86,10 @@ Honesty rules enforced by the app:
 - Upload is off by default and never sends demo samples.
 - The app includes a Live tab (temperature, HR, SpO₂, orientation, lateral
   acceleration) and a persisted System/Light/Dark theme.
+- App-side derived metrics: perfusion index, PPG-derived PRV (RMSSD),
+  temperature trend, movement intensity and device orientation, with a
+  contact/pulse quality state machine. Every record carries an algorithm
+  version.
 
 Verified on this machine: 111 unit tests, TypeScript, Expo Doctor 20/20, an
 Android Metro bundle, and a generated manifest with
