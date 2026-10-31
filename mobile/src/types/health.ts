@@ -58,6 +58,20 @@ export interface SensorFrame {
   signalQuality?: SignalQuality;
 }
 
+/** One 1 Hz snapshot for the live graphs. */
+export interface LivePoint {
+  t: number;
+  temperatureC: number | null;
+  heartRateBpm: number | null;
+  spo2Percent: number | null;
+  accelG: [number, number, number] | null;
+  gyroDps: [number, number, number] | null;
+  roll: number | null;
+  pitch: number | null;
+  yaw: number | null;
+  lateralG: [number, number, number] | null;
+}
+
 export interface MeasurementRecord extends SensorFrame {
   id: string;
   uploaded: boolean;

@@ -40,7 +40,12 @@ import {
   listAlerts,
   markUploaded,
 } from "@/services/storage/db";
-import type { AlertRecord, MeasurementRecord, SensorFrame } from "@/types/health";
+import type {
+  AlertRecord,
+  LivePoint,
+  MeasurementRecord,
+  SensorFrame,
+} from "@/types/health";
 import { createId } from "@/utils/format";
 
 export interface UploadStatus {
@@ -57,6 +62,7 @@ interface PicoHealthContextValue {
   demoFrame: SensorFrame | null;
   /** Most recent frame from either source. */
   frame: SensorFrame | null;
+  series: LivePoint[];
   rawSnapshot: RawSnapshot | null;
   frameCount: number;
   now: number;
@@ -108,6 +114,7 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
   const [demoFrame, setDemoFrame] = useState<SensorFrame | null>(null);
   const [processedFrame, setProcessedFrame] = useState<SensorFrame | null>(null);
   const [rawSnapshot, setRawSnapshot] = useState<RawSnapshot | null>(null);
+  const [series, setSeries] = useState<LivePoint[]>([]);
   const [frameCount, setFrameCount] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>({
@@ -275,6 +282,27 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
 
       setRawSnapshot(snapshot);
       setProcessedFrame(frame);
+
+      const point: LivePoint = {
+        t: snapshot.receivedAt,
+        temperatureC: frame.temperature.valueC,
+        heartRateBpm:
+          frame.heartRateValid ? frame.heartRateBpm ?? null : null,
+        spo2Percent: frame.spo2Valid ? frame.spo2Percent ?? null : null,
+        accelG: snapshot.imu?.valid ? snapshot.imu.accelG : null,
+        gyroDps: snapshot.imu?.valid ? snapshot.imu.gyroDps : null,
+        roll: snapshot.orientation?.roll ?? null,
+        pitch: snapshot.orientation?.pitch ?? null,
+        yaw: snapshot.orientation?.yaw ?? null,
+        lateralG: snapshot.lateralG,
+      };
+      setSeries((previous) => {
+        const cutoff = point.t - 15 * 60 * 1000;
+        const kept = previous.filter((entry) => entry.t >= cutoff);
+        kept.push(point);
+        return kept.slice(-900);
+      });
+
       void handleFrame(frame);
     },
     [handleFrame],
@@ -306,6 +334,7 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
     rawProcessor.reset();
     setProcessedFrame(null);
     setRawSnapshot(null);
+    setSeries([]);
 
     let tick = 0;
     const emit = () => {
@@ -417,6 +446,7 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
     alertStateRef.current = initialAlertState();
     setFrameCount(0);
     setDemoFrame(null);
+    setSeries([]);
     await Promise.all([refreshAlerts(), refreshCount()]);
   }, [refreshAlerts, refreshCount]);
 
@@ -438,6 +468,7 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
       ble,
       demoFrame: settings.demoMode ? demoFrame : null,
       frame,
+      series,
       rawSnapshot,
       frameCount,
       now,
@@ -458,6 +489,7 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
       ble,
       demoFrame,
       frame,
+      series,
       rawSnapshot,
       frameCount,
       now,

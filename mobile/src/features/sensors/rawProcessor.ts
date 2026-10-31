@@ -12,6 +12,13 @@ import {
   decodeLm75a,
   type TemperatureResult,
 } from "@/features/sensors/temperature";
+import {
+  dynamicAcceleration,
+  integrateYaw,
+  rollPitchFromAccel,
+  updateGravity,
+  type Vec3,
+} from "@/features/sensors/orientation";
 import type { RawMessage } from "@/features/sensors/rawProtocol";
 
 /**
@@ -32,6 +39,10 @@ export interface RawSnapshot {
   tempAddr: number | null;
   lastSeq: number | null;
   sensorError: { sensor: string; message: string } | null;
+  /** Roll/pitch from gravity; yaw integrated from gyro (drifts). */
+  orientation: { roll: number; pitch: number; yaw: number } | null;
+  /** Gravity-removed acceleration (lateral / centripetal-style). */
+  lateralG: Vec3 | null;
 }
 
 export class RawSensorProcessor {
@@ -45,6 +56,12 @@ export class RawSensorProcessor {
   private sensorError: { sensor: string; message: string } | null = null;
   private lastEmitAt = 0;
   private latest: RawSnapshot | null = null;
+  private gravity: Vec3 | null = null;
+  private yaw = 0;
+  private lastImuMs: number | null = null;
+  private roll = 0;
+  private pitch = 0;
+  private lateralG: Vec3 | null = null;
 
   constructor(
     private readonly onSnapshot: (snapshot: RawSnapshot) => void,
@@ -79,6 +96,7 @@ export class RawSensorProcessor {
         this.lastSeq = message.seq;
         this.imu = decodeImuRaw(message.axes, this.whoAmI);
         this.applyBias();
+        this.updateOrientation(message.ms);
         this.emit(receivedAt, message.ms, false);
         break;
       }
@@ -111,6 +129,29 @@ export class RawSensorProcessor {
     this.sensorError = null;
     this.latest = null;
     this.lastEmitAt = 0;
+    this.gravity = null;
+    this.yaw = 0;
+    this.lastImuMs = null;
+    this.roll = 0;
+    this.pitch = 0;
+    this.lateralG = null;
+  }
+
+  /** Runs at the IMU rate (20 Hz), not the 1 Hz snapshot rate. */
+  private updateOrientation(imuMs: number): void {
+    const accel = this.imu?.valid ? this.imu.accelG : null;
+    const gyro = this.imu?.valid ? this.imu.gyroDps : null;
+    if (!accel || !gyro) return;
+
+    const dt = this.lastImuMs === null ? 0 : imuMs - this.lastImuMs;
+    this.lastImuMs = imuMs;
+
+    this.yaw = integrateYaw(this.yaw, gyro[2], dt);
+    this.gravity = updateGravity(this.gravity, accel);
+    const angles = rollPitchFromAccel(accel);
+    this.roll = angles.roll;
+    this.pitch = angles.pitch;
+    this.lateralG = dynamicAcceleration(accel, this.gravity);
   }
 
   private applyBias(): void {
@@ -134,6 +175,10 @@ export class RawSensorProcessor {
       tempAddr: this.tempAddr,
       lastSeq: this.lastSeq,
       sensorError: this.sensorError,
+      orientation: this.imu?.valid
+        ? { roll: this.roll, pitch: this.pitch, yaw: this.yaw }
+        : null,
+      lateralG: this.lateralG,
     };
     this.onSnapshot(this.latest);
   }

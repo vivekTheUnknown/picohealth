@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
-import { Alert, Linking, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { useCallback, useEffect, useState } from "react";
 
 import { Field, Screen, ScreenHeader } from "@/components/ui/layout";
@@ -15,6 +15,7 @@ import {
   SwitchRow,
 } from "@/components/ui/primitives";
 import { usePicoHealth } from "@/features/app/PicoHealthProvider";
+import { useThemePreference, type ThemePreference } from "@/theme/ThemeProvider";
 import {
   isInsecureRemoteUrl,
   normalizeBaseUrl,
@@ -67,6 +68,7 @@ function DraftField({
 export default function SettingsScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const { preference, setPreference } = useThemePreference();
   const {
     settings,
     updateSettings,
@@ -182,6 +184,52 @@ export default function SettingsScreen() {
             void updateSettings({ autoReconnect: next });
           }}
         />
+      </Card>
+
+      <SectionTitle>Appearance</SectionTitle>
+      <Card>
+        <Text style={[styles.helper, { color: colors.textMuted }]}>
+          Theme applies to the whole app and native dialogs. System follows the phone.
+        </Text>
+        <View style={styles.chipRow}>
+          {(
+            [
+              ["system", "System"],
+              ["light", "Light"],
+              ["dark", "Dark"],
+            ] as Array<[ThemePreference, string]>
+          ).map(([value, label]) => {
+            const selected = preference === value;
+            return (
+              <Pressable
+                key={value}
+                onPress={() => {
+                  void setPreference(value);
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`${label} theme`}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: selected ? colors.accentSoft : colors.surface,
+                    borderColor: selected ? colors.accent : colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: selected ? colors.accent : colors.textMuted,
+                    fontSize: type.small,
+                    fontWeight: "600",
+                  }}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </Card>
 
       <SectionTitle>Freshness and retention</SectionTitle>
@@ -455,6 +503,14 @@ const styles = StyleSheet.create({
   helper: { fontSize: type.caption, lineHeight: 17 },
   privacy: { fontSize: type.caption, lineHeight: 18 },
   bullet: { fontSize: type.caption, lineHeight: 18 },
+  chipRow: { flexDirection: "row", gap: spacing.sm },
+  chip: {
+    minHeight: 44,
+    paddingHorizontal: spacing.lg,
+    justifyContent: "center",
+    borderRadius: 999,
+    borderWidth: 1,
+  },
   pair: { flexDirection: "row", gap: spacing.md },
   pairItem: { flex: 1 },
   footer: {

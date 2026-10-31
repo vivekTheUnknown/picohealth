@@ -84,6 +84,8 @@ Honesty rules enforced by the app:
 - Gap detection is explicit; history is never interpolated.
 - Stale data is labelled with its last-received time, not shown as current.
 - Upload is off by default and never sends demo samples.
+- The app includes a Live tab (temperature, HR, SpO₂, orientation, lateral
+  acceleration) and a persisted System/Light/Dark theme.
 
 Verified on this machine: 111 unit tests, TypeScript, Expo Doctor 20/20, an
 Android Metro bundle, and a generated manifest with

@@ -19,7 +19,7 @@ export default function TabsLayout() {
         },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textSubtle,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: "600" },
         tabBarItemStyle: { minHeight: 56 },
       }}
     >
@@ -30,6 +30,16 @@ export default function TabsLayout() {
           headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="pulse-outline" size={size} color={String(color)} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="live"
+        options={{
+          headerShown: false,
+          title: "Live",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="analytics-outline" size={size} color={String(color)} />
           ),
         }}
       />

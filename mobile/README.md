@@ -22,6 +22,13 @@ Four tabs: **Dashboard**, **History**, **Alerts**, **Settings**.
   (LM75A address/conversion; IMU `WHO_AM_I`). Badges say “Driver verified”,
   never “clinically validated”.
 - Stores accepted samples in SQLite and shows history with honest gaps.
+- **Live** tab: rolling temperature, heart-rate and SpO₂ charts (gap-preserving,
+  1/5/15-minute windows), a lateral-acceleration vector diagram, and
+  roll/pitch/yaw graphs. Yaw is gyro-integrated and drifts (no magnetometer);
+  true centripetal acceleration needs a rotation radius, so the diagram shows
+  the gravity-removed lateral component and says so.
+- **Appearance**: System / Light / Dark theme, persisted and applied to the
+  whole app including native dialogs.
 - Raises informational, de-duplicated alerts with configurable prototype
   thresholds.
 - Optionally uploads live samples to the starter FastAPI, off by default.
@@ -163,6 +170,13 @@ The BLE protocol is documented in [`../docs/ble-protocol.md`](../docs/ble-protoc
 - History gaps are rendered as gaps; nothing is interpolated.
 - Retention is configurable (1–365 days) and enforced at startup.
 - “Delete local data” removes measurements and alerts from the phone only.
+
+### Theme
+
+The palette lives in `src/theme/tokens.ts` with light and dark token sets.
+`ThemeProvider` stores the preference (`picohealth.theme.v1`), calls
+`Appearance.setColorScheme` so native surfaces match, and falls back to System.
+Charts and SVGs read the same tokens.
 
 ### Upload payload
 
