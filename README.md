@@ -75,14 +75,17 @@ module. Full instructions, permissions, and troubleshooting are in
 
 Honesty rules enforced by the app:
 
-- Raw MAX30102 counts are labelled raw. They are never called heart rate or SpO₂.
-- Temperature and IMU show **no values** while the firmware marks their drivers
-  invalid. Missing data is `null`, never zero.
+- Raw MAX30102 counts are labelled raw on the dashboard; HR/SpO₂ are shown
+  only when a 4 s window passes contact and quality checks, and are labelled
+  estimates.
+- Temperature and IMU are decoded in the app and gated on the observed chip
+  identity (LM75A address/conversion; IMU `WHO_AM_I = 0x70`). Missing data is
+  `null`, never zero.
 - Gap detection is explicit; history is never interpolated.
 - Stale data is labelled with its last-received time, not shown as current.
 - Upload is off by default and never sends demo samples.
 
-Verified on this machine: 70 unit tests, TypeScript, Expo Doctor 20/20, an
+Verified on this machine: 111 unit tests, TypeScript, Expo Doctor 20/20, an
 Android Metro bundle, and a generated manifest with
 `BLUETOOTH_SCAN` + `neverForLocation`. Not verified: the native build, a real
 BLE session, and on-device SQLite — no Android SDK, phone, or Pico was attached.

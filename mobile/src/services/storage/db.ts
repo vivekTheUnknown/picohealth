@@ -33,6 +33,11 @@ async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
           gyro_json TEXT,
           samples INTEGER NOT NULL,
           source TEXT NOT NULL,
+          heart_rate_bpm REAL,
+          spo2_percent REAL,
+          hr_valid INTEGER,
+          spo2_valid INTEGER,
+          signal_quality TEXT,
           uploaded INTEGER NOT NULL DEFAULT 0,
           uploaded_at TEXT
         );
@@ -54,10 +59,34 @@ async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
         CREATE INDEX IF NOT EXISTS idx_alerts_created
           ON alerts (created_ms DESC);
       `);
+      await ensureMeasurementColumns(database);
       return database;
     })();
   }
   return databasePromise;
+}
+
+/**
+ * Adds the app-side processing columns to databases created by an earlier
+ * build. CREATE TABLE IF NOT EXISTS does not alter existing tables.
+ */
+async function ensureMeasurementColumns(database: SQLite.SQLiteDatabase): Promise<void> {
+  const columns = await database.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(measurements)`,
+  );
+  const existing = new Set(columns.map((column) => column.name));
+  const additions: Array<[string, string]> = [
+    ["heart_rate_bpm", "REAL"],
+    ["spo2_percent", "REAL"],
+    ["hr_valid", "INTEGER"],
+    ["spo2_valid", "INTEGER"],
+    ["signal_quality", "TEXT"],
+  ];
+  for (const [name, type] of additions) {
+    if (!existing.has(name)) {
+      await database.execAsync(`ALTER TABLE measurements ADD COLUMN ${name} ${type}`);
+    }
+  }
 }
 
 interface MeasurementRow {
@@ -77,6 +106,11 @@ interface MeasurementRow {
   gyro_json: string | null;
   samples: number;
   source: string;
+  heart_rate_bpm: number | null;
+  spo2_percent: number | null;
+  hr_valid: number | null;
+  spo2_valid: number | null;
+  signal_quality: string | null;
   uploaded: number;
   uploaded_at: string | null;
 }
@@ -121,6 +155,12 @@ function toRecord(row: MeasurementRow): MeasurementRecord {
       gyroDps: parseTriple(row.gyro_json),
     },
     source: row.source === "demo" ? "demo" : "live",
+    heartRateBpm: row.heart_rate_bpm,
+    spo2Percent: row.spo2_percent,
+    heartRateValid: row.hr_valid === 1,
+    spo2Valid: row.spo2_valid === 1,
+    signalQuality:
+      (row.signal_quality as MeasurementRecord["signalQuality"]) ?? undefined,
     uploaded: row.uploaded === 1,
     uploadedAt: row.uploaded_at,
   };
@@ -133,8 +173,9 @@ export async function insertMeasurement(record: MeasurementRecord): Promise<void
       id, received_at, received_ms, uptime_ms, sequence, flags,
       optical_status, temperature_status, imu_status,
       temperature_c, red_raw, ir_raw, accel_json, gyro_json, samples,
-      source, uploaded, uploaded_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      source, heart_rate_bpm, spo2_percent, hr_valid, spo2_valid, signal_quality,
+      uploaded, uploaded_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       record.id,
       new Date(record.receivedAt).toISOString(),
@@ -152,6 +193,11 @@ export async function insertMeasurement(record: MeasurementRecord): Promise<void
       record.imu.gyroDps ? JSON.stringify(record.imu.gyroDps) : null,
       record.optical.samples,
       record.source,
+      record.heartRateBpm ?? null,
+      record.spo2Percent ?? null,
+      record.heartRateValid ? 1 : 0,
+      record.spo2Valid ? 1 : 0,
+      record.signalQuality ?? null,
       record.uploaded ? 1 : 0,
       record.uploadedAt,
     ],

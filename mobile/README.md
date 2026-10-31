@@ -10,12 +10,17 @@ Four tabs: **Dashboard**, **History**, **Alerts**, **Settings**.
 
 - Scans for `PicoHealth-DEV`, connects, discovers the custom GATT service, and
   subscribes to notifications.
-- Reassembles fragmented protocol-v2 JSON records (legacy 28-byte binary frames
-  are still accepted), validates them, and keeps each sensor's status
-  independent.
-- Shows raw optical counts, plus temperature and IMU values only once the
-  firmware identifies the chip (LM75A address/conversion; IMU `WHO_AM_I`). The
-  badge says “Driver verified”, never “clinically validated”.
+- Receives **raw** sensor data (protocol v3), reassembles it, and performs all
+  conversion and signal processing on the phone: LM75A register → °C, IMU axes
+  → g / °/s, and MAX30102 red/IR batches → heart rate and SpO₂ via the
+  Maxim/SparkFun algorithm. Legacy v2 JSON and v1 binary frames are still
+  accepted.
+- Shows raw optical counts plus app-derived HR/SpO₂, with explicit
+  `collecting`, `no_contact`, `poor_signal` and `valid` states. The pulse card
+  withholds values until a 4 s window passes quality checks.
+- Converts temperature and IMU in the app, gated on the observed chip identity
+  (LM75A address/conversion; IMU `WHO_AM_I`). Badges say “Driver verified”,
+  never “clinically validated”.
 - Stores accepted samples in SQLite and shows history with honest gaps.
 - Raises informational, de-duplicated alerts with configurable prototype
   thresholds.
@@ -187,7 +192,7 @@ No name, contact detail, or location is sent.
 Run locally:
 
 ```bash
-npm test          # 70 unit tests
+npm test          # 111 unit tests
 npm run typecheck # tsc --noEmit
 npx expo config --type public
 npx expo export --platform android
@@ -204,6 +209,9 @@ Tests cover the parts where a mistake would make the app lie:
 | Payload | unavailable and unvalidated values become `null`; a genuine `0` is still sent |
 | Settings | clamping, URL policy, upload cannot be enabled without a destination, corrupt storage rejected |
 | Presentation | no heart-rate/SpO₂ claims from raw counts; `--` instead of zero |
+| MAX30102 | 25 Hz resampling, 4 s window, reference algorithm, valid/invalid synthesis cases |
+| Raw protocol | JSON messages, binary batches, malformed/truncated input |
+| Temperature / IMU | LM75A two's complement, identity-gated scaling, gyro bias |
 
 Not verified here (no Android SDK, no phone, no Pico attached): the native build,
 a real BLE scan/connection, notification delivery, and SQLite on-device
@@ -222,6 +230,10 @@ behaviour. Those require the manual steps above.
 - **Single device.** One wearable at a time.
 - **No waveforms.** Only summary frames; ECG/PPG streaming is out of scope.
 - **No CSV export.** Deliberately not implemented rather than half-built.
+- **Optical contact matters.** The bench signal currently has no coherent
+  pulsatile component (~30 counts AC on ~77 k DC), so HR/SpO₂ are correctly
+  withheld. A fingertip must sit directly on the MAX30102 window with gentle
+  pressure and ambient light blocked.
 - **Not clinically calibrated.** Temperature, IMU and raw optical counts are
   uncalibrated prototype readings. The identified chips make the conversions
   correct per datasheet, not medically accurate.

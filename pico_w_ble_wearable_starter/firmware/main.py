@@ -50,7 +50,7 @@ ADV_INTERVAL_US = 250_000
 # The 4-byte reassembly header is part of that budget, so the payload chunk is
 # 16 bytes, not 20. Using 20 truncates every fragment on Android.
 BLE_CHUNK_SIZE = 16
-FRAGMENT_GAP_MS = 25         # controller drops back-to-back notifications
+FRAGMENT_GAP_MS = 5          # faster, but still avoids back-to-back drops
 
 _IRQ_CENTRAL_CONNECT = const(1)
 _IRQ_CENTRAL_DISCONNECT = const(2)
@@ -76,6 +76,12 @@ connections = set()
 ble_data_handle = None
 advertising_needed = True
 frame_sequence = 0
+
+
+def next_sequence():
+    global frame_sequence
+    frame_sequence = (frame_sequence + 1) & 0xFFFF
+    return frame_sequence
 
 
 def uuid_le(text):
@@ -138,26 +144,21 @@ ble.irq(ble_irq)
 ((ble_data_handle,),) = ble.gatts_register_services((MEASUREMENT_SERVICE,))
 
 
-def send_ble_json(record, sequence):
-    """Send one JSON record, framed so the phone can reassemble it.
-
-    The 4-byte header is the documented transport: uint16 sequence,
-    uint8 fragment index, uint8 fragment count. A single JSON record is larger
-    than one notification at the default MTU, so it is always split.
-    """
+def send_payload(payload):
+    """Frame and send one payload: uint16 sequence, uint8 index, uint8 count."""
     if not connections:
         return
 
-    message = ujson.dumps(record).encode()
     chunks = [
-        message[offset:offset + BLE_CHUNK_SIZE]
-        for offset in range(0, len(message), BLE_CHUNK_SIZE)
+        payload[offset:offset + BLE_CHUNK_SIZE]
+        for offset in range(0, len(payload), BLE_CHUNK_SIZE)
     ]
     count = len(chunks)
+    sequence = next_sequence()
 
     for conn_handle in tuple(connections):
         for index, chunk in enumerate(chunks):
-            packet = struct.pack(">HBB", sequence & 0xFFFF, index, count) + chunk
+            packet = struct.pack(">HBB", sequence, index, count) + chunk
             sent = False
             for _attempt in range(3):
                 try:
@@ -166,11 +167,33 @@ def send_ble_json(record, sequence):
                     break
                 except Exception as error:
                     print("BLE notification error:", repr(error))
-                    time.sleep_ms(30)
+                    time.sleep_ms(20)
             if not sent:
                 print("BLE fragment dropped:", sequence, index)
                 break
             time.sleep_ms(FRAGMENT_GAP_MS)
+
+
+def send_json(message):
+    """Type 0x01: UTF-8 JSON control message."""
+    send_payload(b"\x01" + ujson.dumps(message).encode())
+
+
+def send_optical_batch(samples, first_ms, rate_hz):
+    """Type 0x02: raw paired optical samples.
+
+    Layout after the 1-byte type:
+      uint16 sample_count, uint32 first_sample_ms, uint16 rate_hz,
+      then sample_count x (uint32 red, uint32 ir), big-endian.
+    Binary is used here because a 1-second JSON batch of 25-100 pairs would
+    exceed the notification budget on a default-MTU link.
+    """
+    payload = bytearray()
+    payload.append(2)
+    payload += struct.pack(">HIH", len(samples), first_ms & 0xFFFFFFFF, rate_hz)
+    for red, ir in samples:
+        payload += struct.pack(">II", red & 0xFFFFFFFF, ir & 0xFFFFFFFF)
+    send_payload(bytes(payload))
 
 
 # =========================================================
@@ -191,6 +214,7 @@ TEMP_DRIVER_VALID = True
 IMU_IDENTITIES = {0x68: "mpu6050", 0x70: "mpu6500"}
 IMU_DRIVER_VALID = False
 IMU_IDENTITY = None
+IMU_WHO_AM_I = None
 optical_ready = False
 
 last_temp_retry = time.ticks_ms()
@@ -241,16 +265,10 @@ def find_temperature_sensor():
     return None
 
 
-def read_temperature(addr):
-    # Provisional LM75A conversion; confirm exact chip model.
+def read_temperature_raw(addr):
+    """Raw 16-bit LM75A temperature register. Decoding happens in the app."""
     data = read_reg(addr, 0x00, 2)
-    raw = (data[0] << 8) | data[1]
-    raw >>= 5
-
-    if raw & 0x400:
-        raw -= 0x800
-
-    return raw * 0.125
+    return ((data[0] << 8) | data[1]) & 0xFFFF
 
 
 def initialize_temperature():
@@ -264,11 +282,11 @@ def initialize_temperature():
         return False
 
     try:
-        value = read_temperature(temp_addr)
+        value = read_temperature_raw(temp_addr)
         temp_ready = True
         print(
             "Temperature detected at", hex(temp_addr),
-            "| provisional:", value, "C"
+            "| raw register:", value
         )
         return True
     except Exception as error:
@@ -331,34 +349,19 @@ def read_optical_sample():
     return red, ir
 
 
-def collect_optical_window(duration_ms=1000):
-    red_total = 0
-    ir_total = 0
-    samples = 0
-    start = time.ticks_ms()
-
-    while time.ticks_diff(time.ticks_ms(), start) < duration_ms:
+def drain_optical_fifo():
+    """Read every available paired sample, preserving order. No averaging."""
+    pairs = []
+    while len(pairs) < 64:
         write_ptr = read_u8(MAX30102_ADDR, 0x04) & 0x1F
         read_ptr = read_u8(MAX30102_ADDR, 0x06) & 0x1F
         available = (write_ptr - read_ptr) & 0x1F
-
-        while available > 0:
+        if available == 0:
+            break
+        for _ in range(available):
             red, ir = read_optical_sample()
-            red_total += red
-            ir_total += ir
-            samples += 1
-
-            # Refresh actual pointers after each sample.
-            write_ptr = read_u8(MAX30102_ADDR, 0x04) & 0x1F
-            read_ptr = read_u8(MAX30102_ADDR, 0x06) & 0x1F
-            available = (write_ptr - read_ptr) & 0x1F
-
-        time.sleep_ms(5)
-
-    if samples == 0:
-        return None, None, 0
-
-    return red_total // samples, ir_total // samples, samples
+            pairs.append((red, ir))
+    return pairs
 
 
 def initialize_optical():
@@ -398,33 +401,17 @@ def setup_imu():
     return identity
 
 
-def read_imu():
+def read_imu_raw():
+    """Raw signed 16-bit axes. Scaling happens in the app."""
     data = read_reg(IMU_ADDR, 0x3B, 14)
-
-    ax_raw = read_s16(data, 0)
-    ay_raw = read_s16(data, 2)
-    az_raw = read_s16(data, 4)
-    temp_raw = read_s16(data, 6)
-    gx_raw = read_s16(data, 8)
-    gy_raw = read_s16(data, 10)
-    gz_raw = read_s16(data, 12)
-
-    # Provisional MPU-6050 scaling.
-    ax = ax_raw / 16384.0
-    ay = ay_raw / 16384.0
-    az = az_raw / 16384.0
-
-    gx = gx_raw / 131.0
-    gy = gy_raw / 131.0
-    gz = gz_raw / 131.0
-
-    imu_temp = (temp_raw / 340.0) + 36.53
-
-    return ax, ay, az, gx, gy, gz, imu_temp
+    return (
+        read_s16(data, 0), read_s16(data, 2), read_s16(data, 4),
+        read_s16(data, 8), read_s16(data, 10), read_s16(data, 12),
+    )
 
 
 def initialize_imu():
-    global imu_ready, IMU_IDENTITY, IMU_DRIVER_VALID
+    global imu_ready, IMU_IDENTITY, IMU_DRIVER_VALID, IMU_WHO_AM_I
 
     imu_ready = False
     try:
@@ -433,6 +420,7 @@ def initialize_imu():
             return False
 
         identity = setup_imu()
+        IMU_WHO_AM_I = identity
         IMU_IDENTITY = IMU_IDENTITIES.get(identity)
         IMU_DRIVER_VALID = IMU_IDENTITY is not None
         imu_ready = True
@@ -470,37 +458,19 @@ initialize_imu()
 # MAIN LOOP
 # =========================================================
 
+optical_pairs = []
+batch_started_ms = None
+last_temperature_at = 0
+last_imu_at = 0
+last_status_at = 0
+
 while True:
     now = time.ticks_ms()
 
-    # Restart advertising from the main loop after disconnect.
     if advertising_needed and not connections:
         start_advertising()
 
-    temperature_value = None
-    red_value = None
-    ir_value = None
-    optical_count = 0
-    imu_values = None
-
-    # ---------------- Temperature ----------------
-
-    if not temp_ready:
-        if time.ticks_diff(now, last_temp_retry) >= RETRY_MS:
-            last_temp_retry = now
-            initialize_temperature()
-
-    if temp_ready and temp_addr is not None:
-        try:
-            temperature_value = read_temperature(temp_addr)
-        except Exception as error:
-            print("Temperature read error:", repr(error))
-            temp_ready = False
-            temp_addr = None
-            last_temp_retry = time.ticks_ms()
-
-    # ---------------- Optical sensor ----------------
-
+    # ---------------- Optical: drain FIFO, flush one batch per second -------
     if not optical_ready:
         if time.ticks_diff(now, last_optical_retry) >= RETRY_MS:
             last_optical_retry = now
@@ -508,100 +478,90 @@ while True:
 
     if optical_ready:
         try:
-            red_value, ir_value, optical_count = (
-                collect_optical_window(OPTICAL_WINDOW_MS)
-            )
-
-            if optical_count == 0:
-                red_value = None
-                ir_value = None
-
+            pairs = drain_optical_fifo()
+            if pairs:
+                if batch_started_ms is None:
+                    batch_started_ms = now
+                optical_pairs.extend(pairs)
         except Exception as error:
             print("MAX30102 read error:", repr(error))
             optical_ready = False
             last_optical_retry = time.ticks_ms()
+            optical_pairs = []
+            batch_started_ms = None
 
-    # ---------------- IMU ----------------
+    if optical_pairs and batch_started_ms is not None:
+        elapsed = time.ticks_diff(now, batch_started_ms)
+        if elapsed >= 1000:
+            rate_hz = max(1, int(round(len(optical_pairs) * 1000 / elapsed)))
+            send_optical_batch(optical_pairs, batch_started_ms, rate_hz)
+            optical_pairs = []
+            batch_started_ms = None
 
+    # ---------------- Temperature: raw register, 1 Hz -----------------------
+    if not temp_ready:
+        if time.ticks_diff(now, last_temp_retry) >= RETRY_MS:
+            last_temp_retry = now
+            initialize_temperature()
+
+    if temp_ready and temp_addr is not None and time.ticks_diff(now, last_temperature_at) >= 1000:
+        last_temperature_at = now
+        try:
+            send_json({
+                "v": 3,
+                "type": "temperature_raw",
+                "seq": next_sequence(),
+                "ms": now,
+                "raw": read_temperature_raw(temp_addr),
+            })
+        except Exception as error:
+            print("Temperature read error:", repr(error))
+            temp_ready = False
+            temp_addr = None
+            last_temp_retry = time.ticks_ms()
+            send_json({
+                "v": 3, "type": "sensor_error", "sensor": "temperature",
+                "ms": now, "message": repr(error),
+            })
+
+    # ---------------- IMU: raw axes, 20 Hz ----------------------------------
     if not imu_ready:
         if time.ticks_diff(now, last_imu_retry) >= RETRY_MS:
             last_imu_retry = now
             initialize_imu()
 
-    if imu_ready:
+    if imu_ready and time.ticks_diff(now, last_imu_at) >= 50:
+        last_imu_at = now
         try:
-            imu_values = read_imu()
+            ax, ay, az, gx, gy, gz = read_imu_raw()
+            send_json({
+                "v": 3, "type": "imu_raw", "seq": next_sequence(), "ms": now,
+                "ax": ax, "ay": ay, "az": az,
+                "gx": gx, "gy": gy, "gz": gz,
+            })
         except Exception as error:
             print("IMU read error:", repr(error))
             imu_ready = False
             last_imu_retry = time.ticks_ms()
+            send_json({
+                "v": 3, "type": "sensor_error", "sensor": "imu",
+                "ms": now, "message": repr(error),
+            })
 
-    # ---------------- JSON record ----------------
-    #
-    # Status is explicit per sensor. Temperature and IMU drivers are still
-    # provisional, so they are reported as "unvalidated" with no value rather
-    # than sending a number the phone would present as a measurement.
+    # ---------------- Status: identities for app-side gating ----------------
+    if time.ticks_diff(now, last_status_at) >= 10000:
+        last_status_at = now
+        send_json({
+            "v": 3,
+            "type": "status",
+            "seq": next_sequence(),
+            "ms": now,
+            "who_am_i": IMU_WHO_AM_I,
+            "temp_addr": temp_addr,
+            "imu_identity": IMU_IDENTITY,
+            "optical_ready": optical_ready,
+            "temperature_ready": temp_ready,
+            "imu_ready": imu_ready,
+        })
 
-    frame_sequence = (frame_sequence + 1) & 0xFFFF
-
-    if not optical_ready:
-        optical_status = "unavailable"
-    elif red_value is None or ir_value is None:
-        optical_status = "error"
-    else:
-        optical_status = "ok"
-
-    if temp_ready and temperature_value is not None and TEMP_DRIVER_VALID:
-        temperature_status = "ok"
-    elif temp_ready:
-        temperature_status = "error"
-    else:
-        temperature_status = "unavailable"
-
-    if imu_ready and imu_values is not None and IMU_DRIVER_VALID:
-        imu_status = "ok"
-    elif imu_ready:
-        imu_status = "error"
-    else:
-        imu_status = "unavailable"
-
-    record = {
-        "v": 2,
-        "seq": frame_sequence,
-        "up": time.ticks_ms() & 0x7FFFFFFF,
-        "o": {
-            "s": optical_status,
-            "r": red_value,
-            "i": ir_value,
-            "n": optical_count,
-        },
-        "t": {"s": temperature_status},
-        "i": {"s": imu_status},
-    }
-
-    if temperature_status == "ok":
-        record["t"]["c"] = round(temperature_value, 3)
-
-    if imu_status == "ok":
-        ax, ay, az, gx, gy, gz, imu_temp_c = imu_values
-        record["i"]["a"] = [round(ax, 3), round(ay, 3), round(az, 3)]
-        record["i"]["g"] = [round(gx, 3), round(gy, 3), round(gz, 3)]
-        record["i"]["chip"] = IMU_IDENTITY or "unknown"
-
-    # ---------------- BLE streaming ----------------
-
-    if connections:
-        send_ble_json(record, frame_sequence)
-
-    # ---------------- Serial monitor ----------------
-
-    print(
-        "Temp:", temperature_value,
-        "| RED:", red_value,
-        "| IR:", ir_value,
-        "| Samples:", optical_count,
-        "| IMU:", imu_values,
-        "| BLE clients:", len(connections)
-    )
-
-    time.sleep_ms(100)
+    time.sleep_ms(10)

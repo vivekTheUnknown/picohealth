@@ -2,13 +2,20 @@
 
 **Status:** implemented by `firmware/main.py` and the mobile app.
 
-**Current firmware: protocol v2 (JSON).** The original firmware sent a 28-byte
-binary frame; the rewritten firmware sends a JSON measurement record over the
-same GATT service. The app accepts **both** and validates each before display.
+**Current firmware: protocol v3 (raw acquisition).** The Pico reads the three
+sensors and sends **raw values only**: temperature register, IMU axes, and
+batches of paired MAX30102 samples. Every conversion, unit scaling, pulse
+detection and SpO2 estimate happens in the app.
 
-The GATT contract and the fragmentation header did not change — only the
-payload. If either side changes again, both must change together and this
-document must be re-versioned.
+The GATT contract and the fragmentation header did not change. v1 (binary
+frame) and v2 (JSON with converted values) remain supported by the app for
+older firmware.
+
+> The app-side processing specification names Nordic UART as the transport.
+> This build keeps the PicoHealth GATT service, because the service UUID has no
+> bearing on where processing happens and the PicoHealth contract is already
+> verified on the phone. NUS could be substituted without changing any payload
+> or processing code.
 
 ## GATT
 
@@ -42,7 +49,93 @@ notification is *not* one message.
 and are **transport proof only** — the app displays them in the device card and
 never stores or plots them as measurements.
 
-## Protocol v2 — JSON measurement record
+## Protocol v3 — raw acquisition (current)
+
+Every reassembled payload starts with a one-byte type:
+
+| Type | Payload |
+|---|---|
+| `0x01` | UTF-8 JSON control/measurement message |
+| `0x02` | Binary optical batch (paired samples) |
+
+JSON is used for small messages. The optical batch is binary because a
+one-second JSON array of paired samples is several times larger and would blow
+the notification budget on a default-MTU link.
+
+### `temperature_raw` (1 Hz)
+
+```json
+{"v":3,"type":"temperature_raw","seq":42,"ms":123456,"raw":8192}
+```
+
+`raw` is the **raw 16-bit LM75A register**. No conversion happens on the Pico.
+
+### `imu_raw` (20 Hz)
+
+```json
+{"v":3,"type":"imu_raw","seq":43,"ms":123506,
+ "ax":-208,"ay":480,"az":-15864,"gx":59,"gy":88,"gz":-26}
+```
+
+Signed 16-bit axes, exactly as read from `0x3B..0x48`. No scaling on the Pico.
+
+### `status` (every 10 s)
+
+```json
+{"v":3,"type":"status","seq":44,"ms":130000,
+ "who_am_i":112,"temp_addr":72,"imu_identity":"mpu6500",
+ "optical_ready":true,"temperature_ready":true,"imu_ready":true}
+```
+
+The app uses `who_am_i` to select scale factors. `0x70` is MPU-6500 class, not
+MPU-6050; unknown identities leave IMU values unvalidated.
+
+### `sensor_error`
+
+```json
+{"v":3,"type":"sensor_error","sensor":"max30102","ms":123456,"message":"..."}
+```
+
+### `0x02` — optical batch
+
+| Offset | Size | Type | Meaning |
+|---|---|---|---|
+| 0 | 1 | uint8 | `0x02` |
+| 1 | 2 | uint16 BE | Sample count |
+| 3 | 4 | uint32 BE | First sample device time, ms |
+| 7 | 2 | uint16 BE | Measured sample rate, Hz |
+| 9 | 8 × count | pairs | `uint32 red`, `uint32 ir` |
+
+Samples are paired and in acquisition order. The firmware drains the MAX30102
+FIFO continuously and flushes roughly once per second; the measured rate is
+included because the configured 100 Hz / 4-sample average yields ~25–30 Hz in
+practice (29–30 Hz observed on this build).
+
+## App-side processing (protocol v3)
+
+| Stage | Module | Responsibility |
+|---|---|---|
+| Transport | `ble/assembler.ts` | Reassemble fragments; reject incomplete/duplicate/oversized messages |
+| Parse | `sensors/rawProtocol.ts` | Split by type, validate with zod, decode the binary batch |
+| Temperature | `sensors/temperature.ts` | LM75A: bits 15..5, two's complement, 0.125 °C/LSB, −55…125 °C |
+| IMU | `sensors/imu.ts` | Identity gate (0x68/0x70), 16384 LSB/g, 131 LSB/(°/s), gyro bias |
+| Optical | `sensors/max30102/processor.ts` | Timestamped buffer, resample to 25 Hz, 4 s window, contact/clipping |
+| Algorithm | `sensors/max30102/algorithm.ts` | Full Maxim/SparkFun port: DC removal, 4-pt MA, valleys, AC/DC ratio, median, 184-entry table |
+| Orchestration | `sensors/rawProcessor.ts` | Latest state + snapshot emission for UI/storage |
+
+Quality states: `collecting`, `no_contact`, `poor_signal`, `valid`,
+`sensor_error`. Heart rate and SpO2 have separate validity flags. Contact and
+clipping gate both, so a plausible-looking ratio with no finger is not shown.
+
+The algorithm assumes 25 Hz / 100 samples; the measured 25–30 Hz stream is
+linearly resampled so the reference timing assumptions hold.
+
+**Observed on the bench:** with a finger near (but not properly coupled to) the
+sensor, DC is ~77 k counts but AC is only ~30 counts with no coherent tone, so
+the app correctly reports `poor_signal` and withholds HR/SpO2. Proper skin
+contact is required for a pulsatile signal.
+
+## Legacy protocol v2 — JSON measurement record
 
 The measurement characteristic carries one JSON object per message. It is
 larger than a single notification, so it uses the same fragmentation header

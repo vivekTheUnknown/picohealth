@@ -45,7 +45,7 @@ export function opticalDetail(frame: SensorFrame): string {
   if (status === "unvalidated") return "Raw counts present; acquisition path unverified.";
   if (status === "error") return "Sensor claimed validity but returned no counts.";
   return samples > 0
-    ? `${samples} sample${samples === 1 ? "" : "s"} in the last frame. Raw counts only.`
+    ? `${samples}-sample analysis window. Raw counts only; HR/SpO₂ are derived in the app.`
     : "Raw counts available; sample count was zero.";
 }
 
@@ -99,6 +99,16 @@ export function frameSummary(frame: SensorFrame): string {
         ? "IMU unverified"
         : "IMU --",
   );
+
+  const heartRate =
+    frame.heartRateValid && frame.heartRateBpm !== null && frame.heartRateBpm !== undefined
+      ? `${Math.round(frame.heartRateBpm)} bpm`
+      : "--";
+  const spo2 =
+    frame.spo2Valid && frame.spo2Percent !== null && frame.spo2Percent !== undefined
+      ? `${frame.spo2Percent}%`
+      : "--";
+  parts.push(`HR ${heartRate}`, `SpO₂ ${spo2}`);
 
   return parts.join(" · ");
 }

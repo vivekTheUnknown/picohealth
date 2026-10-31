@@ -17,6 +17,11 @@ import {
   decodeJsonRecord,
   looksLikeJson,
 } from "@/features/ble/protocol";
+import {
+  isRawPayload,
+  parseRawPayload,
+  type RawMessage,
+} from "@/features/sensors/rawProtocol";
 import { ensureBlePermissions } from "@/services/permissions/ble";
 import type { ConnectionState, SensorFrame } from "@/types/health";
 import { base64ToBytes } from "@/utils/format";
@@ -26,6 +31,8 @@ export interface BleSessionOptions {
   autoReconnect: boolean;
   enabled: boolean;
   onFrame: (frame: SensorFrame) => void;
+  /** Protocol v3 raw acquisition messages. */
+  onRawMessage?: (message: RawMessage) => void;
 }
 
 export interface BleSession {
@@ -50,7 +57,7 @@ const MAX_RECONNECT_ATTEMPTS = 8;
  * established — never when merely connected at the GATT level.
  */
 export function useBleSession(options: BleSessionOptions): BleSession {
-  const { deviceName, autoReconnect, enabled, onFrame } = options;
+  const { deviceName, autoReconnect, enabled, onFrame, onRawMessage } = options;
 
   const [state, setState] = useState<ConnectionState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -72,10 +79,12 @@ export function useBleSession(options: BleSessionOptions): BleSession {
   const mountedRef = useRef(true);
   const stateRef = useRef<ConnectionState>("idle");
   const onFrameRef = useRef(onFrame);
+  const onRawRef = useRef(onRawMessage);
   const autoReconnectRef = useRef(autoReconnect);
   const deviceNameRef = useRef(deviceName);
 
   onFrameRef.current = onFrame;
+  onRawRef.current = onRawMessage;
   autoReconnectRef.current = autoReconnect;
   deviceNameRef.current = deviceName;
   stateRef.current = state;
@@ -122,9 +131,21 @@ export function useBleSession(options: BleSessionOptions): BleSession {
         return;
       }
 
+      // Protocol v3: raw acquisition, processed in the app.
+      if (isRawPayload(result.bytes)) {
+        const raw = parseRawPayload(result.bytes);
+        if (raw) {
+          setProtocolError(null);
+          onRawRef.current?.(raw);
+        } else {
+          setDroppedFrames((count) => count + 1);
+          setProtocolError("raw_payload: malformed v3 message");
+        }
+        return;
+      }
+
       try {
-        // v2 firmware sends JSON over the same characteristic; v1 sent the
-        // 28-byte binary frame. Both are accepted and validated.
+        // Legacy v2 JSON / v1 binary frames.
         const decoded = looksLikeJson(result.bytes)
           ? decodeJsonRecord(result.bytes)
           : decodeFrame(result.bytes);

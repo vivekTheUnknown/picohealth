@@ -19,6 +19,7 @@ import {
   type AlertEpisodeState,
 } from "@/features/alerts/rules";
 import { useBleSession } from "@/features/ble/useBleSession";
+import { RawSensorProcessor, type RawSnapshot } from "@/features/sensors/rawProcessor";
 import {
   DEFAULT_SETTINGS,
   SETTINGS_STORAGE_KEY,
@@ -56,6 +57,7 @@ interface PicoHealthContextValue {
   demoFrame: SensorFrame | null;
   /** Most recent frame from either source. */
   frame: SensorFrame | null;
+  rawSnapshot: RawSnapshot | null;
   frameCount: number;
   now: number;
 
@@ -104,6 +106,8 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
   const [alertsLoading, setAlertsLoading] = useState(true);
   const [storedCount, setStoredCount] = useState(0);
   const [demoFrame, setDemoFrame] = useState<SensorFrame | null>(null);
+  const [processedFrame, setProcessedFrame] = useState<SensorFrame | null>(null);
+  const [rawSnapshot, setRawSnapshot] = useState<RawSnapshot | null>(null);
   const [frameCount, setFrameCount] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>({
@@ -227,14 +231,71 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
     [enqueueUpload, persistAlert],
   );
 
+  /**
+   * Raw v3 snapshot -> the app's existing display/persistence model.
+   * The conversions already happened in the sensor modules.
+   */
+  const handleRawSnapshot = useCallback(
+    (snapshot: RawSnapshot) => {
+      const { temperature, imu, optical } = snapshot;
+
+      const frame: SensorFrame = {
+        receivedAt: snapshot.receivedAt,
+        uptimeMs: Math.max(0, Math.round(snapshot.uptimeMs)),
+        flags: 0,
+        sequence: snapshot.lastSeq,
+        source: "live",
+        optical: {
+          // Data is arriving whenever we have counts; contact is a quality
+          // state, not a sensor failure, so it must not raise "unavailable".
+          status: optical.red !== null && optical.ir !== null ? "ok" : "unavailable",
+          red: optical.red,
+          ir: optical.ir,
+          samples: optical.windowSamples,
+        },
+        temperature: {
+          status: temperature
+            ? temperature.valid
+              ? "ok"
+              : "error"
+            : "unavailable",
+          valueC: temperature?.valid ? temperature.valueC : null,
+        },
+        imu: {
+          status: imu ? (imu.valid ? "ok" : "unvalidated") : "unavailable",
+          accelG: imu?.valid ? imu.accelG : null,
+          gyroDps: imu?.valid ? imu.gyroDps : null,
+        },
+        heartRateBpm: optical.heartRateBpm,
+        spo2Percent: optical.spo2Percent,
+        heartRateValid: optical.heartRateValid,
+        spo2Valid: optical.spo2Valid,
+        signalQuality: optical.status,
+      };
+
+      setRawSnapshot(snapshot);
+      setProcessedFrame(frame);
+      void handleFrame(frame);
+    },
+    [handleFrame],
+  );
+
+  const rawProcessor = useMemo(
+    () => new RawSensorProcessor(handleRawSnapshot),
+    [handleRawSnapshot],
+  );
+
   const ble = useBleSession({
     deviceName: settings.deviceName,
     autoReconnect: settings.autoReconnect,
     enabled: !settings.demoMode,
     onFrame: handleFrame,
+    onRawMessage: (message) => rawProcessor.ingest(message),
   });
 
-  const frame = settings.demoMode ? demoFrame : ble.lastFrame;
+  const frame = settings.demoMode
+    ? demoFrame
+    : processedFrame ?? ble.lastFrame;
 
   // Labelled demo source. Never uploaded, and never presented as a device.
   useEffect(() => {
@@ -242,6 +303,9 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
       setDemoFrame(null);
       return;
     }
+    rawProcessor.reset();
+    setProcessedFrame(null);
+    setRawSnapshot(null);
 
     let tick = 0;
     const emit = () => {
@@ -374,6 +438,7 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
       ble,
       demoFrame: settings.demoMode ? demoFrame : null,
       frame,
+      rawSnapshot,
       frameCount,
       now,
       alerts,
@@ -393,6 +458,7 @@ export function PicoHealthProvider({ children }: { children: ReactNode }) {
       ble,
       demoFrame,
       frame,
+      rawSnapshot,
       frameCount,
       now,
       alerts,

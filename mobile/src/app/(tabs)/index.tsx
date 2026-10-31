@@ -50,6 +50,64 @@ const BUSY = new Set<ConnectionState>([
   "reconnecting",
 ]);
 
+/** App-side MAX30102 quality state -> badge + explanation. */
+function pulsePresentation(frame: {
+  signalQuality?: string;
+}): {
+  label: string;
+  tone: "neutral" | "accent" | "success" | "warning" | "danger" | "info";
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  detail: string;
+} {
+  switch (frame.signalQuality) {
+    case "valid":
+      return {
+        label: "Estimate available",
+        tone: "success",
+        icon: "checkmark-circle",
+        detail: "A full 4-second window passed the signal-quality checks.",
+      };
+    case "no_contact":
+      return {
+        label: "Place finger",
+        tone: "warning",
+        icon: "hand-left",
+        detail:
+          "The optical DC level is too low for skin contact. Place a finger over the sensor.",
+      };
+    case "poor_signal":
+      return {
+        label: "Poor signal",
+        tone: "warning",
+        icon: "warning-outline",
+        detail:
+          "The window failed quality checks. Keep still and adjust finger placement.",
+      };
+    case "sensor_error":
+      return {
+        label: "Sensor error",
+        tone: "danger",
+        icon: "close-circle",
+        detail: "The optical stream reported an error. Check the sensor connection.",
+      };
+    case "collecting":
+      return {
+        label: "Measuring",
+        tone: "info",
+        icon: "hourglass-outline",
+        detail:
+          "Collecting a 4-second window of paired red/IR samples before estimating.",
+      };
+    default:
+      return {
+        label: "No estimate",
+        tone: "neutral",
+        icon: "remove-circle",
+        detail: "No validated optical window is available yet.",
+      };
+  }
+}
+
 export default function DashboardScreen() {
   const { colors } = useTheme();
   const { settings, ble, frame, now, frameCount } = usePicoHealth();
@@ -195,6 +253,51 @@ export default function DashboardScreen() {
           <Card>
             <View style={styles.cardHeader}>
               <View style={styles.titleRow}>
+                <Ionicons name="heart" size={18} color={colors.accent} />
+                <Text style={[styles.cardTitle, { color: colors.text }]}>Pulse & oxygen</Text>
+              </View>
+              <Badge
+                label={pulsePresentation(frame).label}
+                tone={pulsePresentation(frame).tone}
+                icon={pulsePresentation(frame).icon}
+              />
+            </View>
+
+            <View style={styles.pulseRow}>
+              <View style={styles.pulseMetric}>
+                <Text style={[styles.pulseValue, { color: colors.text }]}>
+                  {frame.heartRateValid && frame.heartRateBpm != null
+                    ? Math.round(frame.heartRateBpm)
+                    : "--"}
+                </Text>
+                <Text style={[styles.pulseUnit, { color: colors.textMuted }]}>
+                  bpm (estimate)
+                </Text>
+              </View>
+              <View style={styles.pulseMetric}>
+                <Text style={[styles.pulseValue, { color: colors.text }]}>
+                  {frame.spo2Valid && frame.spo2Percent != null
+                    ? frame.spo2Percent
+                    : "--"}
+                </Text>
+                <Text style={[styles.pulseUnit, { color: colors.textMuted }]}>
+                  % SpO₂ (estimate)
+                </Text>
+              </View>
+            </View>
+
+            <Text style={[styles.detail, { color: colors.textMuted }]}>
+              {pulsePresentation(frame).detail}
+            </Text>
+            <Text style={[styles.technical, { color: colors.textSubtle }]}>
+              Derived in the app from raw MAX30102 red/IR samples using the
+              Maxim ratio-of-ratios algorithm. Not clinically calibrated.
+            </Text>
+          </Card>
+
+          <Card>
+            <View style={styles.cardHeader}>
+              <View style={styles.titleRow}>
                 <Ionicons name="pulse" size={18} color={colors.accent} />
                 <Text style={[styles.cardTitle, { color: colors.text }]}>Optical sensor</Text>
               </View>
@@ -290,6 +393,19 @@ const styles = StyleSheet.create({
   deviceName: { fontSize: type.body, fontWeight: "600" },
   deviceMeta: { fontSize: type.small, lineHeight: 19 },
   buttonRow: { flexDirection: "row", gap: spacing.sm },
+  pulseRow: {
+    flexDirection: "row",
+    gap: spacing.xxl,
+    marginTop: spacing.xs,
+  },
+  pulseMetric: { flex: 1, gap: 2 },
+  pulseValue: {
+    fontSize: 30,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+    letterSpacing: -0.5,
+  },
+  pulseUnit: { fontSize: type.caption },
   metric: {
     fontSize: type.metric,
     fontWeight: "700",

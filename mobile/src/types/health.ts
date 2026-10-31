@@ -13,6 +13,13 @@ export const MAX_FRAGMENT_PAYLOAD_BYTES = 20;
 
 export type SensorStatus = "ok" | "unavailable" | "error" | "unvalidated";
 
+export type SignalQuality =
+  | "no_contact"
+  | "collecting"
+  | "poor_signal"
+  | "valid"
+  | "sensor_error";
+
 export interface OpticalReading {
   status: SensorStatus;
   red: number | null;
@@ -43,6 +50,12 @@ export interface SensorFrame {
   /** Documented as "live" for BLE, "demo" for the labelled demo source. */
   source: "live" | "demo";
   sequence: number | null;
+  /** Derived in the app from the MAX30102 raw waveform. */
+  heartRateBpm?: number | null;
+  spo2Percent?: number | null;
+  heartRateValid?: boolean;
+  spo2Valid?: boolean;
+  signalQuality?: SignalQuality;
 }
 
 export interface MeasurementRecord extends SensorFrame {

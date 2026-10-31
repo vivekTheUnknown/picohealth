@@ -48,12 +48,27 @@ describe("sensor presentation", () => {
     ).toBe("0.01, 0.02, 1.00 g");
   });
 
-  it("keeps the history summary free of derived or clinical claims", () => {
-    const summary = frameSummary(base).toLowerCase();
-    expect(summary).toContain("r 12345");
-    expect(summary).toContain("temp -- °c");
-    expect(summary).toContain("imu unverified");
-    expect(summary).not.toMatch(/bpm|spo2|heart rate|diagnos/);
+  it("shows HR and SpO2 as unavailable rather than inventing values", () => {
+    const summary = frameSummary(base);
+    expect(summary).toContain("R 12345");
+    expect(summary).toContain("Temp -- °C");
+    expect(summary).toContain("IMU unverified");
+    expect(summary).toContain("HR --");
+    expect(summary).toContain("SpO₂ --");
+    expect(summary.toLowerCase()).not.toMatch(/diagnos/);
+  });
+
+  it("includes derived estimates when they are marked valid", () => {
+    const summary = frameSummary({
+      ...base,
+      heartRateBpm: 72,
+      heartRateValid: true,
+      spo2Percent: 97,
+      spo2Valid: true,
+      signalQuality: "valid",
+    });
+    expect(summary).toContain("HR 72 bpm");
+    expect(summary).toContain("SpO₂ 97%");
   });
 
   it("marks a missing optical reading as -- rather than zero", () => {

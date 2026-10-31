@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { useRouter } from "expo-router";
 import { Alert, Linking, StyleSheet, Text, View } from "react-native";
 import { useCallback, useEffect, useState } from "react";
 
@@ -65,6 +66,7 @@ function DraftField({
 
 export default function SettingsScreen() {
   const { colors } = useTheme();
+  const router = useRouter();
   const {
     settings,
     updateSettings,
@@ -362,8 +364,8 @@ export default function SettingsScreen() {
           </View>
         </View>
         <Text style={[styles.helper, { color: colors.textSubtle }]}>
-          Temperature rules only run when the firmware marks the driver valid. It currently does
-          not, so no temperature alerts are raised.
+          Temperature rules run only when the app decodes a plausible LM75A value. The raw
+          register is converted on the phone, not on the Pico.
         </Text>
       </Card>
 
@@ -384,10 +386,24 @@ export default function SettingsScreen() {
         ) : null}
       </Card>
 
+      <SectionTitle>Diagnostics</SectionTitle>
+      <Card>
+        <Text style={[styles.helper, { color: colors.textMuted }]}>
+          Raw counts, device identities, sample rate and sequence numbers. Use this when
+          a reading looks wrong; the dashboard only shows validated values.
+        </Text>
+        <Button
+          label="Open raw diagnostics"
+          variant="secondary"
+          icon="analytics-outline"
+          onPress={() => router.push("/diagnostics")}
+        />
+      </Card>
+
       <SectionTitle>App and privacy</SectionTitle>
       <Card>
         <InfoRow label="App version" value={appVersion} />
-        <InfoRow label="BLE protocol" value="v1 · binary 28-byte frame" />
+        <InfoRow label="BLE protocol" value="v3 · raw JSON + optical batches" />
         <InfoRow label="Firmware" value="Not reported by the device" />
         <InfoRow label="Data stored" value="Measurements and alerts, on this phone only" />
         <Divider />

@@ -268,6 +268,26 @@ export default function HistoryScreen() {
                     <Text style={[styles.technical, { color: colors.textSubtle }]}>
                       {imuDetail(record)}
                     </Text>
+                    <InfoRow
+                      label="Heart rate"
+                      value={
+                        record.heartRateValid && record.heartRateBpm != null
+                          ? `${Math.round(record.heartRateBpm)} bpm (estimate)`
+                          : "—"
+                      }
+                    />
+                    <InfoRow
+                      label="SpO₂"
+                      value={
+                        record.spo2Valid && record.spo2Percent != null
+                          ? `${record.spo2Percent}% (estimate)`
+                          : "—"
+                      }
+                    />
+                    <InfoRow
+                      label="Signal quality"
+                      value={record.signalQuality ?? "not reported"}
+                    />
                     <InfoRow label="Sensor flags" value={`0x${record.flags.toString(16).padStart(2, "0")}`} />
                     <InfoRow
                       label="Upload"
